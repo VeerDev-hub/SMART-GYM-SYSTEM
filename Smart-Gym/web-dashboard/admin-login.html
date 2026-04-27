@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Gym | Admin Access</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="auth-wrapper">
+        <div class="auth-card">
+            <div style="text-align: center; margin-bottom: 24px;">
+                <h1 style="font-weight: 800; font-size: 1.5rem; letter-spacing: -0.5px;">ADMIN<span>CONSOLE</span></h1>
+                <p class="text-sm text-muted" style="margin-top: 8px;">Enter credentials for management access</p>
+            </div>
+            
+            <div class="form-group">
+                <label>Username</label>
+                <input type="text" id="username" class="form-control" placeholder="admin" autocomplete="username">
+            </div>
+            
+            <div class="form-group">
+                <label>Password</label>
+                <input type="password" id="password" class="form-control" placeholder="••••••••" autocomplete="current-password">
+            </div>
+            
+            <button class="btn btn-primary" style="width: 100%; margin-top: 8px;" onclick="handleLogin()">Sign In</button>
+            <div id="error" class="text-sm" style="color: var(--danger); margin-top: 16px; display: none; text-align: center;"></div>
+        </div>
+    </div>
+
+    <script>
+        const BACKEND_URL = `http://${window.location.hostname}:8080`;
+        
+        async function handleLogin() {
+            const user = document.getElementById('username').value;
+            const pass = document.getElementById('password').value;
+            const err = document.getElementById('error');
+            
+            err.style.display = 'none';
+            
+            try {
+                const response = await fetch(`${BACKEND_URL}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: user, password: pass })
+                });
+                
+                if (!response.ok) {
+                    err.style.display = 'block';
+                    err.innerText = "Invalid credentials.";
+                    return;
+                }
+                
+                const data = await response.json();
+                
+                if (data.role !== 'admin') {
+                    err.style.display = 'block';
+                    err.innerText = "Admin privileges required.";
+                    return;
+                }
+                
+                localStorage.setItem('gymAdminToken', data.access_token);
+                window.location.href = "admin.html";
+            } catch (e) {
+                err.style.display = 'block';
+                err.innerText = "Network failure.";
+            }
+        }
+        
+        document.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') handleLogin();
+        });
+    </script>
+</body>
+</html>

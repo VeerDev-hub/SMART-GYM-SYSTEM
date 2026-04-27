@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description"
+        content="Smart Gym Intelligence Dashboard — Real-time AI form analysis, RFID member tracking, and IoT machine monitoring.">
+    <title>Smart Gym | Live Dashboard</title>
+    <link rel="stylesheet" href="style.css?v=1.1">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+
+    <!-- Rep Toast Overlay -->
+    <div id="rep-toast" class="rep-toast" aria-live="polite"></div>
+
+    <div class="kiosk-layout">
+
+        <!-- STATUS STRIP (Top Bar) -->
+        <header class="status-strip">
+            <div class="strip-brand">
+                <span class="logo-gym">SMART</span><span class="logo-iot">GYM</span>
+            </div>
+            <div id="global-error-banner" class="error-banner" style="display: none;">
+                <span class="icon">⚠️</span>
+                <span id="error-message">Please tap your card at the entrance first.</span>
+            </div>
+
+            <div class="strip-session-info">
+                <div id="member-avatar" class="member-avatar">?</div>
+                <div class="strip-text">
+                    <div id="strip-name" class="strip-name">Awaiting Tap...</div>
+                    <div id="strip-exercise" class="strip-exercise">No Exercise Selected</div>
+                </div>
+                <div class="strip-divider"></div>
+                <div class="strip-timer-block">
+                    <div id="session-timer" class="strip-timer">00:00</div>
+                    <div class="strip-timer-label">ELAPSED</div>
+                </div>
+                <div class="strip-divider"></div>
+                <div class="live-pill">
+                    <span class="live-dot-small"></span>
+                    <span id="strip-status-text">READY</span>
+                </div>
+            </div>
+
+            <a href="admin.html" class="strip-admin-link">Admin Console</a>
+        </header>
+
+        <!-- MAIN CONTENT -->
+        <main class="kiosk-main">
+
+            <!-- REP HERO -->
+            <section class="rep-hero" id="rep-hero">
+                <div class="rep-hero-inner">
+                    <div class="rep-label-top">REPS COMPLETED</div>
+                    <div id="rep-display" class="rep-number">0</div>
+                    <div id="rep-subtitle" class="rep-subtitle">Tap your RFID card to begin</div>
+                </div>
+            </section>
+
+            <!-- METRICS ROW -->
+            <section class="metrics-row">
+
+                <!-- AI Coach Card -->
+                <div class="metric-card coach-display" id="coach-display-card">
+                    <div class="metric-card-header">
+                        <span class="metric-card-title">AI Coach</span>
+                        <div class="quality-header-block">
+                            <div id="quality-indicator" class="quality-dot"></div>
+                            <span id="quality-label">Awaiting Rep</span>
+                        </div>
+                    </div>
+                    <h3 id="ai-status-title">Stand By</h3>
+                    <p id="ai-feedback-text">Position yourself in front of the camera to begin form analysis.</p>
+
+                    <div class="rom-tracker" style="margin-top: 20px;">
+                        <label>Range of Motion</label>
+                        <div class="rom-bar-bg">
+                            <div id="rom-bar-fill" class="rom-bar-fill"></div>
+                            <div id="rom-marker" class="rom-marker"></div>
+                        </div>
+                        <div class="rom-labels">
+                            <span>0%</span>
+                            <span>Target Zone</span>
+                            <span>100%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Stats + Machine Control Card -->
+                <div class="metric-card stats-control-card">
+                    <div class="metric-card-header">
+                        <span class="metric-card-title">Session Stats</span>
+                        <span id="last-update" class="last-update-text"></span>
+                    </div>
+                    <div class="quick-stats">
+                        <div class="qs-item">
+                            <div class="qs-value" id="qs-form">—</div>
+                            <div class="qs-label">Form %</div>
+                        </div>
+                        <div class="qs-item">
+                            <div class="qs-value" id="qs-fatigue">—</div>
+                            <div class="qs-label">Fatigue</div>
+                        </div>
+                        <div class="qs-item">
+                            <div class="qs-value" id="qs-visits">—</div>
+                            <div class="qs-label">Total Visits</div>
+                        </div>
+                    </div>
+
+                    <div class="section-divider"></div>
+
+                    <!-- Machine Control -->
+                    <div class="machine-control-section">
+                        <div class="control-row">
+                            <select id="exercise-select" class="exercise-select">
+                                <option value="chest_press">Chest Press</option>
+                                <option value="shoulder_press">Shoulder Press</option>
+                                <option value="bicep_curl">Bicep Curl</option>
+                                <option value="lat_pulldown">Lat Pulldown</option>
+                            </select>
+                            <button id="start-exercise-button" class="action-btn">▶ Start</button>
+                        </div>
+                        <div class="control-row">
+                            <input id="rfid-input" type="text" placeholder="Manual RFID override..."
+                                class="rfid-manual-input">
+                            <button id="tap-button" class="action-btn-secondary">Tap</button>
+                        </div>
+                        <button id="reset-machine-button" class="reset-btn">↺ Reset Machine State</button>
+                    </div>
+
+                    <div class="section-divider"></div>
+                    <div class="status-chips-row">
+                        <div class="status-chip-mini">Session: <strong id="session-status">Awaiting RFID</strong></div>
+                        <div class="status-chip-mini">Exercise: <strong id="exercise-status">Not selected</strong></div>
+                    </div>
+                </div>
+
+                <!-- Member Card -->
+                <div class="metric-card member-card">
+                    <div class="metric-card-header">
+                        <span class="metric-card-title">Member Profile</span>
+                        <span id="login-state" class="login-state-badge">Waiting</span>
+                    </div>
+                    <div id="member-avatar-large" class="member-avatar-large">?</div>
+                    <div id="member-name" class="member-name-hero">Awaiting Tap...</div>
+                    <div id="member-username" class="member-sub">—</div>
+
+                    <div class="member-stat-row">
+                        <div class="ms-item">
+                            <div class="ms-label">Plan</div>
+                            <div id="member-plan" class="ms-value">—</div>
+                        </div>
+                        <div class="ms-item">
+                            <div class="ms-label">Status</div>
+                            <div id="member-status" class="ms-value">—</div>
+                        </div>
+                        <div class="ms-item">
+                            <div class="ms-label">Visits</div>
+                            <div id="member-visits" class="ms-value">—</div>
+                        </div>
+                    </div>
+                    <div class="member-last-entry">Last: <span id="member-last-entry">—</span></div>
+                </div>
+            </section>
+
+            <!-- ── CHART + HISTORY ROW ── -->
+            <section class="bottom-row">
+                <div class="metric-card chart-card">
+                    <div class="metric-card-header">
+                        <span class="metric-card-title">Form Analysis (Live)</span>
+                    </div>
+                    <div class="chart-wrap">
+                        <canvas id="motionChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="metric-card history-card">
+                    <div class="metric-card-header">
+                        <span class="metric-card-title">Session History</span>
+                    </div>
+                    <div id="machine-history" class="history-list">
+                        <p class="empty-state">Awaiting session data...</p>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- Hidden compatibility shims (script.js references these) -->
+    <div id="user-display" style="display:none"></div>
+    <div id="rest-advice" style="display:none"></div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>

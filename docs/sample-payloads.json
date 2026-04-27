@@ -1,0 +1,36 @@
+{
+  "entry_log": {
+    "rfid_uid": "DEADBEEF",
+    "granted": true,
+    "reason": "membership_active",
+    "source": "entrance_station"
+  },
+  "session_start": {
+    "rfid_uid": "DEADBEEF",
+    "machine_name": "Chest Press",
+    "station_id": "CHEST_PRESS_01"
+  },
+  "session_sample": {
+    "session_id": "6e17f52d-80aa-4326-9b0c-7c8879f9857d",
+    "distance": 1432,
+    "rep_count": 6,
+    "rom": 412.4,
+    "rep_completed": true
+  },
+  "session_end": {
+    "session_id": "6e17f52d-80aa-4326-9b0c-7c8879f9857d",
+    "total_reps": 10,
+    "duration_ms": 48500,
+    "average_rom": 401.3,
+    "speed_consistency": 0.44,
+    "machine_name": "Chest Press"
+  },
+  "predict_request": {
+    "total_reps": 10,
+    "average_rep_duration": 1.85,
+    "average_rom": 401.3,
+    "speed_consistency": 0.44,
+    "rom_dropoff": 38.7
+  }
+}
+

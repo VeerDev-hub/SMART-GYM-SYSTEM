@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Gym | My Progress</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="admin-container">
+        <!-- Top Navigation -->
+        <header class="top-bar">
+            <div class="brand">
+                <h1>MY<span>PROGRESS</span></h1>
+            </div>
+            <div class="nav-links">
+                <span id="user-name-title" style="font-weight: 600; margin-right: 16px;">Loading...</span>
+                <a href="index.html">Live Mode</a>
+                <button onclick="userLogout()">Logout</button>
+            </div>
+        </header>
+
+        <!-- Stats Grid -->
+        <div class="stats-grid" id="user-summary">
+            <div class="stat-box">
+                <div class="stat-box-value" id="total-visits">0</div>
+                <div class="stat-box-label">Total Visits</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-box-value" id="total-reps">0</div>
+                <div class="stat-box-label">Lifetime Reps</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-box-value" id="avg-form">0%</div>
+                <div class="stat-box-label">Average Form</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-box-value" id="member-status">ACTIVE</div>
+                <div class="stat-box-label">Membership</div>
+            </div>
+        </div>
+
+        <!-- History Content -->
+        <main style="margin-top: 32px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="font-size: 1.25rem; font-weight: 700;">Workout Timeline</h2>
+            </div>
+            
+            <div id="history-list" style="display: flex; flex-direction: column; gap: 16px;">
+                <div style="padding: 40px; text-align: center; color: var(--text-muted); border: 1px dashed var(--border); border-radius: var(--radius-lg);">
+                    Analyzing your performance data...
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="user.js"></script>
+</body>
+</html>

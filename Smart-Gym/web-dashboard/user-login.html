@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Gym | Member Portal</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .rfid-icon {
+            width: 64px; height: 64px;
+            margin: 0 auto 24px;
+            background-color: var(--bg-input);
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            border: 1px solid var(--border);
+        }
+    </style>
+</head>
+<body>
+    <div class="auth-wrapper">
+        <div class="auth-card">
+            
+            <div class="rfid-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2">
+                    <rect x="2" y="4" width="20" height="16" rx="2"/>
+                    <path d="M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0"/>
+                    <path d="M12 7v1"/>
+                    <path d="M12 16v1"/>
+                </svg>
+            </div>
+            
+            <div style="text-align: center; margin-bottom: 24px;">
+                <h1 style="font-weight: 800; font-size: 1.5rem; letter-spacing: -0.5px;">MEMBER<span>PORTAL</span></h1>
+                <p class="text-sm text-muted" style="margin-top: 8px;">Scan RFID card to view workout history</p>
+            </div>
+            
+            <div class="form-group">
+                <input type="text" id="rfid-uid" class="form-control" placeholder="8-Digit HEX UID" style="text-align: center; font-family: monospace; letter-spacing: 2px;">
+            </div>
+            
+            <button class="btn btn-primary" style="width: 100%; margin-top: 8px;" onclick="handleLogin()">Unlock Progress</button>
+            <div id="error" class="text-sm" style="color: var(--danger); margin-top: 16px; display: none; text-align: center;"></div>
+        </div>
+    </div>
+
+    <script>
+        const BACKEND_URL = `http://${window.location.hostname}:8080`;
+        
+        async function handleLogin() {
+            const uid = document.getElementById('rfid-uid').value.trim().toUpperCase();
+            const err = document.getElementById('error');
+            
+            err.style.display = 'none';
+            if (!uid) return;
+
+            try {
+                const response = await fetch(`${BACKEND_URL}/auth/rfid-login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ rfid_uid: uid })
+                });
+                
+                if (!response.ok) {
+                    err.style.display = 'block';
+                    err.innerText = "RFID not recognized.";
+                    return;
+                }
+                
+                const data = await response.json();
+                localStorage.setItem('gymUserToken', data.access_token);
+                localStorage.setItem('gymMemberId', data.member.id);
+                window.location.href = "user.html";
+            } catch (e) {
+                err.style.display = 'block';
+                err.innerText = "Network failure.";
+            }
+        }
+
+        document.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') handleLogin();
+        });
+    </script>
+</body>
+</html>

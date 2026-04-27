@@ -1,0 +1,1 @@
+Please do not modify main.py thresholds without consulting Shriyansh. For hardware integration, please add your logic in the hardware/ folder.

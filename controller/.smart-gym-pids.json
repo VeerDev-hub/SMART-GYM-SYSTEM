@@ -1,0 +1,51 @@
+[
+  {
+    "name": "backend",
+    "pid": 3020,
+    "cwd": "F:\\Projects\\IoT\\backend",
+    "cmd": [
+      "F:\\Projects\\IoT\\backend\\venv\\Scripts\\python.exe",
+      "-m",
+      "uvicorn",
+      "main:app",
+      "--host",
+      "127.0.0.1",
+      "--port",
+      "8000",
+      "--reload"
+    ],
+    "log": "F:\\Projects\\IoT\\controller\\logs\\backend.log"
+  },
+  {
+    "name": "simulator",
+    "pid": 9408,
+    "cwd": "F:\\Projects\\IoT\\Smart-Gym\\demo-simulator",
+    "cmd": [
+      "F:\\Projects\\IoT\\venv\\Scripts\\python.exe",
+      "simulator.py"
+    ],
+    "log": "F:\\Projects\\IoT\\controller\\logs\\simulator.log"
+  },
+  {
+    "name": "ai-vision",
+    "pid": 25792,
+    "cwd": "F:\\Projects\\IoT\\Smart-Gym\\ai-vision",
+    "cmd": [
+      "F:\\Projects\\IoT\\venv\\Scripts\\python.exe",
+      "main.py"
+    ],
+    "log": "F:\\Projects\\IoT\\controller\\logs\\ai-vision.log"
+  },
+  {
+    "name": "dashboard",
+    "pid": 7616,
+    "cwd": "F:\\Projects\\IoT\\Smart-Gym\\web-dashboard",
+    "cmd": [
+      "F:\\Projects\\IoT\\venv\\Scripts\\python.exe",
+      "-m",
+      "http.server",
+      "8080"
+    ],
+    "log": "F:\\Projects\\IoT\\controller\\logs\\dashboard.log"
+  }
+]
