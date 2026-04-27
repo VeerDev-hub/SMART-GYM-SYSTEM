@@ -1,504 +1,454 @@
-// web-dashboard/script.js
-// Smart Gym Intelligence Dashboard — Frontend Controller
+/**
+ * Smart Gym Intelligence Dashboard - Frontend Controller V2.0
+ * Handles real-time telemetry, AI vision feedback, and session management.
+ */
 
-let myChart = null;
-let lastRepTime = Date.now();
-let lastRepCount = 0;
-
+// --- Configuration & State ---
+// The BACKEND_URL dynamically resolves based on the browser's current address
 const BACKEND_URL = `http://${window.location.hostname}:8080`;
-const LOCAL_FALLBACK_URL = "./live_state.json";
-const AUTO_LOGIN_KEY = "smartGymAutoLogin";
-const POLL_INTERVAL_MS = 250;
 
-let autoLoginState = {
-  rfidUid: "",
-  token: "",
-  member: null,
-  dashboard: null,
+const CONFIG = {
+    BACKEND_URL: BACKEND_URL,
+    POLL_INTERVAL: 250,
+    CHART_POINTS: 20,
+    ROM_CALIBRATION: { max: 72, min: 65 }
 };
 
-// Restore cached auto-login from localStorage
-try {
-  const saved = JSON.parse(localStorage.getItem(AUTO_LOGIN_KEY) || "{}");
-  autoLoginState = { ...autoLoginState, ...saved };
-} catch (error) {
-  console.warn("Auto-login cache unavailable:", error);
+window.addEventListener('error', function(e) {
+    const errorBanner = document.getElementById('global-error-banner');
+    const errorMessage = document.getElementById('error-message');
+    if (errorBanner && errorMessage) {
+        errorBanner.style.display = 'flex';
+        errorMessage.innerText = "JS Error: " + e.message;
+    }
+});
+
+let state = {
+    chart: null,
+    lastRepCount: 0,
+    lastRepTime: Date.now(),
+    currentExercise: null,
+    isOffline: false,
+    isPreparing: false,
+    auth: JSON.parse(localStorage.getItem('smartGymAutoLogin') || '{}')
+};
+
+// --- Initialization ---
+document.addEventListener('DOMContentLoaded', () => {
+    initChart();
+    startPolling();
+    attachEventListeners();
+});
+
+function attachEventListeners() {
+    document.getElementById('tap-button').addEventListener('click', handleRfidTap);
+    document.getElementById('start-exercise-button').addEventListener('click', handleStartExercise);
+    document.getElementById('reset-machine-button').addEventListener('click', handleResetMachine);
 }
 
-// ──────────────────────────────────────────────
-//  Network helpers
-// ──────────────────────────────────────────────
-
-async function fetchDashboardData() {
-  try {
-    const res = await fetch(`${BACKEND_URL}/dashboard/live`, {
-      cache: "no-store",
-      headers: { "Cache-Control": "no-cache" },
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    setConnectionStatus(true);
-    return await res.json();
-  } catch (error) {
-    console.warn("Backend fetch failed, trying local fallback:", error.message);
-    setConnectionStatus(false);
+// --- API Layer ---
+async function apiFetch(endpoint, options = {}) {
     try {
-      const fallback = await fetch(`${LOCAL_FALLBACK_URL}?t=${Date.now()}`, { cache: "no-store" });
-      if (!fallback.ok) throw new Error(`Fallback HTTP ${fallback.status}`);
-      return await fallback.json();
-    } catch (fallbackError) {
-      console.error("All data sources offline:", fallbackError.message);
-      return null;
+        const response = await fetch(`${CONFIG.BACKEND_URL}${endpoint}`, {
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.detail || `HTTP ${response.status}`);
+        }
+
+        state.isOffline = false;
+        return await response.json();
+    } catch (err) {
+        state.isOffline = true;
+        console.error(`API Error [${endpoint}]:`, err.message);
+        return null;
     }
-  }
 }
 
-async function postJson(path, payload) {
-  const res = await fetch(`${BACKEND_URL}${path}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body.detail || `HTTP ${res.status}`);
-  }
-  return res.json();
-}
+// --- Core Logic ---
+async function updateDashboard() {
+    try {
+        const data = await apiFetch('/dashboard/live');
+        if (!data) {
+            updateOfflineUI();
+            return;
+        }
 
-function setConnectionStatus(online) {
-  const el = document.getElementById("last-update");
-  if (!el) return;
-  if (!online) {
-    el.innerText = "Backend offline — using local cache";
-    el.style.color = "var(--warning)";
-  } else {
-    el.style.color = "";
-  }
-}
+        const { current, feeds, history } = data;
 
-// ──────────────────────────────────────────────
-//  Auto-login via RFID
-// ──────────────────────────────────────────────
-
-function saveAutoLoginState() {
-  localStorage.setItem(AUTO_LOGIN_KEY, JSON.stringify(autoLoginState));
-}
-
-async function fetchMemberDashboard(token) {
-  const res = await fetch(`${BACKEND_URL}/user/dashboard`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  if (!res.ok) throw new Error(`Dashboard HTTP ${res.status}`);
-  return res.json();
-}
-
-async function autoLoginFromRfid(current) {
-  if (!current || !current.auto_login_ready || !current.rfid_uid) return;
-
-  // Already logged in for this card
-  if (autoLoginState.rfidUid === current.rfid_uid && autoLoginState.token) {
-    if (!autoLoginState.dashboard) {
-      try {
-        autoLoginState.dashboard = await fetchMemberDashboard(autoLoginState.token);
-        saveAutoLoginState();
-      } catch (error) {
-        console.error("Cached member dashboard fetch failed:", error);
-      }
+        handleSessionState(current);
+        
+        updateHeader(current);
+        updateRepHero(current);
+        updateAICoach(current, feeds);
+        updateROMTracker(current);
+        updateStats(current);
+        updateMemberCard(current);
+        
+        if (Date.now() - state.lastRepTime > 2000) {
+            updateHistory(history);
+            updateChart(feeds);
+            state.lastRepTime = Date.now();
+        }
+    } catch (err) {
+        const errorBanner = document.getElementById('global-error-banner');
+        const errorMessage = document.getElementById('error-message');
+        if (errorBanner && errorMessage) {
+            errorBanner.style.display = 'flex';
+            errorMessage.innerText = "Loop Error: " + err.message + " | Stack: " + err.stack;
+        }
     }
-    return;
-  }
-
-  // New RFID card — perform login
-  const login = await postJson("/auth/rfid-login", { rfid_uid: current.rfid_uid });
-  autoLoginState.rfidUid = current.rfid_uid;
-  autoLoginState.token = login.access_token;
-  autoLoginState.member = login.member;
-  autoLoginState.dashboard = null;
-
-  try {
-    autoLoginState.dashboard = await fetchMemberDashboard(login.access_token);
-  } catch (error) {
-    console.error("Member dashboard fetch failed after RFID login:", error);
-  }
-  saveAutoLoginState();
 }
 
-// ──────────────────────────────────────────────
-//  Rest Optimizer
-// ──────────────────────────────────────────────
+function handleSessionState(current) {
+    // Detect RFID change and handle auto-login
+    if (current.auto_login_ready && current.rfid_uid !== state.auth.rfidUid) {
+        performAutoLogin(current.rfid_uid);
+    }
 
-function runRestOptimizer(currentReps) {
-  const restText = document.getElementById("rest-advice");
-  if (!restText) return;
+    // Detect reset
+    if (current.exercise_status === 'awaiting_rfid' && state.auth.rfidUid) {
+        clearLocalSession();
+    }
 
-  if (currentReps > lastRepCount) {
-    lastRepTime = Date.now();
-    lastRepCount = currentReps;
-    restText.innerText = "Set in progress... Keep going!";
-    restText.style.color = "var(--accent-light)";
-  } else if (currentReps === 0 && lastRepCount > 0) {
-    const secondsSinceLastRep = Math.floor((Date.now() - lastRepTime) / 1000);
-    if (secondsSinceLastRep < 60) {
-      restText.innerText = `Resting: ${secondsSinceLastRep}s (Target: 60-90s)`;
-      restText.style.color = "var(--warning)";
+    // Rest tracking
+    if (current.rep_count > state.lastRepCount) {
+        state.lastRepCount = current.rep_count;
+        state.lastRepTime = Date.now();
+    }
+}
+
+// --- UI Updaters ---
+function updateHeader(current) {
+    const nameEl = document.getElementById('strip-name');
+    const exerciseEl = document.getElementById('strip-exercise');
+    const timerEl = document.getElementById('session-timer');
+    const statusText = document.getElementById('strip-status-text');
+
+    nameEl.innerText = current.member_name || 'Ready for Workout';
+    exerciseEl.innerText = current.exercise_type ? current.exercise_type.replace('_', ' ') : 'Please select an exercise';
+
+    // Status Indicator
+    statusText.innerText = current.is_offline ? 'Offline' : 'Live Sync';
+
+    // Timer
+    if (current.exercise_status === 'tracking' && current.updated_at) {
+        const start = new Date(current.updated_at).getTime();
+        const elapsed = Math.floor((Date.now() - start) / 1000);
+        const mins = Math.floor(elapsed / 60).toString().padStart(2, '0');
+        const secs = (elapsed % 60).toString().padStart(2, '0');
+        timerEl.innerText = `${mins}:${secs}`;
     } else {
-      restText.innerText = "Recovery optimal. Ready for next set!";
-      restText.style.color = "var(--good)";
+        timerEl.innerText = '00:00';
     }
-  }
 }
 
-// ──────────────────────────────────────────────
-//  AI Coach display
-// ──────────────────────────────────────────────
+function updateRepHero(current) {
+    if (state.isPreparing) return; // Prevent polling from overwriting countdown
 
-function updateAICoach(current, mFeeds) {
-  if (!current) return;
-  const latest = mFeeds && mFeeds.length ? mFeeds[mFeeds.length - 1] : null;
-  const stateId = latest ? parseInt(latest.field4) : current.ai_state || 0;
+    const display = document.getElementById('rep-display');
+    const subtitle = document.getElementById('rep-subtitle');
 
-  const titleEl = document.getElementById("ai-status-title");
-  const textEl = document.getElementById("ai-feedback-text");
-  const boxEl = document.querySelector(".coach-display");
+    const count = current.rep_count || 0;
+    if (display.innerText !== count.toString()) {
+        display.innerText = count;
+        display.style.animation = 'none';
+        display.offsetHeight; // trigger reflow
+        display.style.animation = 'pulse 0.3s ease-out';
+    }
 
-  // Handle Reset State for text
-  if (current.exercise_status === "awaiting_exercise" || current.exercise_status === "awaiting_rfid") {
-    titleEl.innerText = "Ready to Start";
-    textEl.innerText = "Position yourself in front of the camera and start your set.";
-    boxEl.classList.remove("state-good", "state-warn", "state-danger");
-    updateQualityIndicator(0, "Ready");
-    return;
-  }
-
-  // Reset state classes
-  boxEl.classList.remove("state-good", "state-warn", "state-danger");
-
-  const feedbackMap = {
-    0: { t: "Perfect Form", d: "Excellent control. Maintain this tempo.", c: "state-good" },
-    1: { t: "Asymmetry", d: "Balance your grip. One side is lagging during the press.", c: "state-warn" },
-    2: { t: "Posture Alert", d: "Keep your back flat against the pad and brace your core.", c: "state-warn" },
-    3: { t: "Half-Rep", d: "Increase range of motion. Finish the full chest press arc.", c: "state-warn" },
-    4: { t: "Weight Jerking", d: "Too much momentum! Slow down and control both directions.", c: "state-danger" },
-    5: { t: "Wrong Exercise", d: "Only one hand is lifting. Use both hands together for proper form.", c: "state-danger" },
-  };
-
-  const config = feedbackMap[stateId] || feedbackMap[0];
-  titleEl.innerText = current.ai_status || config.t;
-  textEl.innerText = current.feedback_text || config.d;
-  if (config.c) boxEl.classList.add(config.c);
-
-  // Update Quality Dot
-  updateQualityIndicator(stateId, current.ai_status);
+    if (current.exercise_status === 'awaiting_rfid') {
+        subtitle.innerText = 'Tap your RFID card or log in manually to begin';
+    } else if (current.exercise_status === 'awaiting_exercise') {
+        subtitle.innerText = 'Select an exercise to start your set';
+    } else {
+        subtitle.innerText = `Keep it up, ${current.member_name.split(' ')[0]}! You're doing great.`;
+    }
 }
 
-function updateQualityIndicator(stateId, status) {
-  const dot = document.getElementById("quality-indicator");
-  const label = document.getElementById("quality-label");
-  if (!dot || !label) return;
+function updateAICoach(current, feeds) {
+    const title = document.getElementById('ai-status-title');
+    const feedback = document.getElementById('ai-feedback-text');
+    const card = document.getElementById('coach-display-card');
+    const dot = document.getElementById('quality-indicator');
+    const label = document.getElementById('quality-label');
 
-  dot.classList.remove("quality-good", "quality-warn", "quality-bad");
+    // Handle Error States
+    const errorBanner = document.getElementById('global-error-banner');
+    if (current.ai_status === 'Access Denied') {
+        errorBanner.style.display = 'flex';
+        document.getElementById('error-message').innerText = current.feedback_text;
+        card.style.borderColor = 'var(--danger)';
+        title.innerText = "Action Required";
+        feedback.innerText = "Please log in at the terminal first.";
+        return;
+    } else {
+        errorBanner.style.display = 'none';
+        card.style.borderColor = 'var(--border-light)';
+    }
 
-  if (stateId === 0) {
-    dot.classList.add("quality-good");
-    label.innerText = "Good Form";
-  } else if (stateId === 4 || stateId === 5) {
-    dot.classList.add("quality-bad");
-    label.innerText = "Fix Form";
-  } else {
-    dot.classList.add("quality-warn");
-    label.innerText = "Adjusting...";
-  }
+    // Default status
+    dot.className = 'quality-dot';
+
+    title.innerText = current.ai_status || "Let's get started";
+    feedback.innerText = current.feedback_text || "Position yourself correctly on the machine. I'll provide real-time feedback on your form.";
+
+    const stateId = current.ai_state || 0;
+    if (stateId === 0) {
+        dot.classList.add('quality-good');
+        label.innerText = "Excellent Form";
+        if (current.exercise_status === 'tracking') card.style.borderColor = 'var(--success)';
+    } else if (stateId >= 4) {
+        dot.classList.add('quality-bad');
+        label.innerText = "Needs Adjustment";
+    } else {
+        dot.classList.add('quality-warn');
+        label.innerText = "Almost There";
+    }
 }
 
-let lastPercentage = 0;
+function updateROMTracker(current) {
+    const fill = document.getElementById('rom-bar-fill');
+    const marker = document.getElementById('rom-marker');
 
-function updateGuidance(current) {
-  const romFill = document.getElementById("rom-bar-fill");
-  const romMarker = document.getElementById("rom-marker");
-  if (!romFill || !romMarker) return;
+    if (!current.current_distance || current.exercise_status !== 'tracking') {
+        fill.style.width = '0%';
+        return;
+    }
 
-  // Handle RESET state
-  if (!current.current_distance || current.exercise_status === "awaiting_exercise" || current.exercise_status === "completed") {
-    romFill.style.width = "0%";
-    romMarker.style.left = "0%";
-    lastPercentage = 0;
-    return;
-  }
+    const { max, min } = CONFIG.ROM_CALIBRATION;
+    let percent = ((max - current.current_distance) / (max - min)) * 100;
+    percent = Math.max(0, Math.min(100, percent));
 
-  // Calibrate ROM: 72cm (start) to 65cm (full extension)
-  const maxDist = 72.0;
-  const minDist = 65.0;
-  const range = maxDist - minDist;
-
-  let targetPercentage = ((maxDist - current.current_distance) / range) * 100;
-  targetPercentage = Math.max(0, Math.min(100, targetPercentage));
-
-  // Smoothing (Lerp): Move 40% of the way to target each frame
-  const smoothed = lastPercentage + (targetPercentage - lastPercentage) * 0.4;
-  lastPercentage = smoothed;
-
-  romFill.style.width = `${smoothed}%`;
-  romMarker.style.left = `${smoothed}%`;
-
-  if (smoothed > 90) {
-    romFill.style.boxShadow = "0 0 15px var(--good)";
-  } else {
-    romFill.style.boxShadow = "0 0 10px var(--accent-glow)";
-  }
+    fill.style.width = `${percent}%`;
 }
 
-// ──────────────────────────────────────────────
-//  Chart.js — Form Analysis
-// ──────────────────────────────────────────────
+function updateStats(current) {
+    const formVal = document.getElementById('qs-form');
+    const fatigueVal = document.getElementById('qs-fatigue');
 
-function updateChart(mFeeds) {
-  const canvas = document.getElementById("motionChart");
-  if (!canvas || !mFeeds || mFeeds.length === 0) return;
-  const ctx = canvas.getContext("2d");
-
-  const visionData = mFeeds.slice(-20);
-  const labels = visionData.map((f) => {
-    const timePart = f.created_at.split("T")[1];
-    return timePart ? timePart.split(".")[0] : "";
-  });
-  const formIds = visionData.map((f) => parseInt(f.field4));
-
-  if (myChart) myChart.destroy();
-
-  myChart = new Chart(ctx, {
-    type: "line",
-    data: {
-      labels: labels,
-      datasets: [
-        {
-          label: "Form Error ID (0 = Perfect)",
-          data: formIds,
-          borderColor: "#a29bfe",
-          backgroundColor: "rgba(108, 92, 231, 0.08)",
-          fill: true,
-          tension: 0.45,
-          pointRadius: 3,
-          pointBackgroundColor: "#a29bfe",
-          pointBorderColor: "#a29bfe",
-          borderWidth: 2,
-        },
-      ],
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      animation: false,
-      plugins: {
-        legend: {
-          labels: {
-            color: "#8a94a6",
-            font: { family: "Inter", size: 12 },
-          },
-        },
-      },
-      scales: {
-        x: {
-          ticks: { color: "#5a6375", font: { size: 10 } },
-          grid: { color: "rgba(255,255,255,0.04)" },
-        },
-        y: {
-          min: 0,
-          max: 5,
-          ticks: { stepSize: 1, color: "#5a6375", font: { size: 11 } },
-          grid: { color: "rgba(255,255,255,0.04)" },
-        },
-      },
-    },
-  });
+    if (current.exercise_status === 'tracking') {
+        formVal.innerText = current.ai_state === 0 ? "98%" : "72%";
+        formVal.style.color = current.ai_state === 0 ? "var(--success)" : "var(--warning)";
+        fatigueVal.innerText = current.rep_count > 10 ? "High" : "Low";
+    } else {
+        formVal.innerText = "--";
+        formVal.style.color = "var(--text-muted)";
+        fatigueVal.innerText = "--";
+    }
 }
-
-// ──────────────────────────────────────────────
-//  Session History table
-// ──────────────────────────────────────────────
-
-function updateHistory(history) {
-  const historyEl = document.getElementById("machine-history");
-  if (!historyEl) return;
-
-  if (!history || history.length === 0) {
-    historyEl.innerHTML = `<p style="text-align:center; color:var(--text-muted);">Awaiting session data...</p>`;
-    return;
-  }
-
-  historyEl.innerHTML = history
-    .map(
-      (item) => `
-    <div class="history-row">
-      <strong>${item.member_name}</strong>
-      <span>${new Date(item.started_at).toLocaleString()}</span>
-      <span>Reps: ${item.reps ?? 0}</span>
-      <span>Fatigue: ${item.fatigue_level || "Pending"}</span>
-      <span>Form: ${item.form_score != null ? Number(item.form_score).toFixed(1) : "Pending"}</span>
-    </div>`
-    )
-    .join("");
-}
-
-// ──────────────────────────────────────────────
-//  Machine State display
-// ──────────────────────────────────────────────
-
-function updateMachineState(current) {
-  const sessionStatus = document.getElementById("session-status");
-  const exerciseStatus = document.getElementById("exercise-status");
-  const rfidInput = document.getElementById("rfid-input");
-
-  if (sessionStatus) {
-    const raw = current.exercise_status || "awaiting_rfid";
-    sessionStatus.innerText = raw.replaceAll("_", " ");
-  }
-  if (exerciseStatus) {
-    exerciseStatus.innerText = current.exercise_type
-      ? current.exercise_type.replaceAll("_", " ")
-      : "Not selected";
-  }
-  if (rfidInput && current.rfid_uid && current.exercise_status !== "awaiting_rfid") {
-    rfidInput.value = current.rfid_uid;
-  }
-}
-
-// ──────────────────────────────────────────────
-//  Member Profile Card
-// ──────────────────────────────────────────────
 
 function updateMemberCard(current) {
-  const profile = current.member_profile || autoLoginState.member;
-  const dashboard = autoLoginState.dashboard;
+    const profile = current.member_profile || state.auth.member;
+    const nameEl = document.getElementById('member-name');
+    const userEl = document.getElementById('member-username');
+    const planEl = document.getElementById('member-plan');
+    const visitsEl = document.getElementById('member-visits');
+    const loginBadge = document.getElementById('login-state');
+    const avatar = document.getElementById('member-avatar-large');
+    const avatarSmall = document.getElementById('member-avatar');
 
-  document.getElementById("login-state").innerText = current.auto_login_ready
-    ? "Signed in via RFID"
-    : "Waiting for RFID";
-
-  document.getElementById("member-name").innerText = profile?.full_name || "Awaiting Tap...";
-  document.getElementById("member-username").innerText = profile?.username || "-";
-  document.getElementById("member-plan").innerText =
-    dashboard?.member?.membership_plan || profile?.membership_plan || "-";
-  document.getElementById("member-status").innerText =
-    dashboard?.member?.membership_status || profile?.membership_status || "-";
-  document.getElementById("member-visits").innerText =
-    dashboard?.summary?.total_visits ?? "-";
-  document.getElementById("member-last-entry").innerText = dashboard?.summary?.last_entry_time
-    ? new Date(dashboard.summary.last_entry_time).toLocaleString()
-    : "-";
+    if (current.rfid_uid) {
+        nameEl.innerText = current.member_name;
+        userEl.innerText = "Authenticated Member";
+        planEl.innerText = profile?.membership_plan || "Active Plan";
+        visitsEl.innerText = profile?.total_visits || "0";
+        loginBadge.innerText = "Logged In";
+        loginBadge.className = "badge badge-success";
+        avatar.innerText = current.member_name.charAt(0);
+        avatar.style.background = "var(--accent-primary)";
+        avatarSmall.innerText = current.member_name.charAt(0);
+    } else {
+        nameEl.innerText = "Welcome";
+        userEl.innerText = "Please log in to track progress";
+        planEl.innerText = "--";
+        visitsEl.innerText = "--";
+        loginBadge.innerText = "Guest";
+        loginBadge.className = "badge badge-neutral";
+        avatar.innerText = "?";
+        avatar.style.background = "var(--bg-input)";
+        avatarSmall.innerText = "?";
+    }
 }
 
-// ──────────────────────────────────────────────
-//  Action handlers
-// ──────────────────────────────────────────────
+function updateHistory(history) {
+    const list = document.getElementById('machine-history');
+    if (!history || history.length === 0) {
+        list.innerHTML = '<div style="padding: 32px; text-align: center; color: var(--text-muted); font-size: 0.9rem;">No workouts recorded recently.</div>';
+        return;
+    }
 
-async function handleTapRfid() {
-  const rfidInput = document.getElementById("rfid-input");
-  const uid = rfidInput.value.trim().toUpperCase();
-  if (!uid) {
-    alert("Enter or tap an RFID UID first.");
-    return;
-  }
-
-  try {
-    await postJson("/machine/tap", {
-      rfid_uid: uid,
-      machine_name: "Chest Press",
-      station_id: "CHEST_PRESS_01",
-    });
-    await loadDashboard();
-  } catch (error) {
-    alert(`RFID tap failed: ${error.message}`);
-  }
+    list.innerHTML = history.map(item => `
+        <div class="list-item" style="padding: 16px; border-radius: var(--radius-sm); border: 1px solid var(--border-light); margin-bottom: 8px;">
+            <div>
+                <strong style="color: var(--text-main); font-size: 0.95rem;">${item.member_name}</strong><br>
+                <span style="color: var(--text-muted); font-size: 0.8rem;">${item.machine_name || 'Chest Press'}</span>
+            </div>
+            <div style="text-align: right;">
+                <span style="color: var(--accent-primary); font-weight: 800; font-size: 1.1rem;">${item.reps} Reps</span><br>
+                <span style="color: var(--text-muted); font-size: 0.75rem;">${new Date(item.started_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+            </div>
+        </div>
+    `).join('');
 }
 
-async function handleSelectExercise() {
-  const exercise = document.getElementById("exercise-select").value;
-  try {
-    await postJson("/machine/select-exercise", {
-      exercise_type: exercise,
-      machine_name: "Chest Press",
-      station_id: "CHEST_PRESS_01",
+// --- Chart Logic ---
+function initChart() {
+    try {
+        if (typeof Chart === 'undefined') {
+            console.warn("Chart.js failed to load. Skipping chart initialization.");
+            return;
+        }
+        const ctx = document.getElementById('motionChart').getContext('2d');
+        state.chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: Array(CONFIG.CHART_POINTS).fill(''),
+                datasets: [{
+                    label: 'Form Accuracy (0 = Perfect)',
+                    data: Array(CONFIG.CHART_POINTS).fill(0),
+                    borderColor: '#6c5ce7',
+                    backgroundColor: 'rgba(108, 92, 231, 0.1)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: { duration: 0 },
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { display: false },
+                    y: {
+                        min: 0, max: 5,
+                        grid: { color: 'rgba(255,255,255,0.05)' },
+                        ticks: { color: '#5a6375', stepSize: 1 }
+                    }
+                }
+            }
+        });
+    } catch (e) {
+        console.error("Chart initialization failed:", e);
+    }
+}
+
+function updateChart(feeds) {
+    if (!state.chart || !feeds) return;
+    const latest = feeds.slice(-CONFIG.CHART_POINTS).map(f => f.field4 || 0);
+
+    // Pad if not enough data
+    while (latest.length < CONFIG.CHART_POINTS) latest.unshift(0);
+
+    state.chart.data.datasets[0].data = latest;
+    state.chart.update('none');
+}
+
+// --- Action Handlers ---
+async function handleRfidTap() {
+    const input = document.getElementById('rfid-input');
+    const uid = input.value.trim();
+    if (!uid) return;
+
+    const res = await apiFetch('/machine/tap', {
+        method: 'POST',
+        body: JSON.stringify({
+            rfid_uid: uid,
+            machine_name: "Chest Press",
+            station_id: "STATION_01"
+        })
     });
-    await loadDashboard();
-  } catch (error) {
-    alert(`Exercise selection failed: ${error.message}`);
-  }
+
+    if (res) input.value = '';
+}
+
+async function handleStartExercise() {
+    if (state.isPreparing) return;
+    
+    const exercise = document.getElementById('exercise-select').value;
+    const display = document.getElementById('rep-display');
+    const subtitle = document.getElementById('rep-subtitle');
+    
+    state.isPreparing = true;
+    let count = 3;
+    
+    display.style.color = "var(--warning)";
+    display.innerText = count;
+    subtitle.innerText = "Get ready to start...";
+    
+    const countdownInterval = setInterval(async () => {
+        count--;
+        if (count > 0) {
+            display.innerText = count;
+            // trigger reflow for animation
+            display.style.animation = 'none';
+            display.offsetHeight;
+            display.style.animation = 'pulse 0.3s ease-out';
+        } else {
+            clearInterval(countdownInterval);
+            display.innerText = "GO!";
+            display.style.color = "";
+            state.isPreparing = false;
+            
+            await apiFetch('/machine/select-exercise', {
+                method: 'POST',
+                body: JSON.stringify({
+                    exercise_type: exercise,
+                    machine_name: "Chest Press",
+                    station_id: "STATION_01"
+                })
+            });
+        }
+    }, 1000);
 }
 
 async function handleResetMachine() {
-  try {
-    await postJson("/machine/reset", {});
-    document.getElementById("rfid-input").value = "";
-    autoLoginState = { rfidUid: "", token: "", member: null, dashboard: null };
-    saveAutoLoginState();
-    lastRepCount = 0;
-    await loadDashboard();
-  } catch (error) {
-    alert(`Machine reset failed: ${error.message}`);
-  }
+    await apiFetch('/machine/reset', { method: 'POST' });
+    clearLocalSession();
 }
 
-// ──────────────────────────────────────────────
-//  Main polling loop
-// ──────────────────────────────────────────────
-
-async function loadDashboard() {
-  const data = await fetchDashboardData();
-  if (!data) return;
-
-  // Clear cached login if machine was reset
-  if (
-    !data.current.auto_login_ready &&
-    data.current.exercise_status === "awaiting_rfid" &&
-    autoLoginState.rfidUid
-  ) {
-    autoLoginState = { rfidUid: "", token: "", member: null, dashboard: null };
-    saveAutoLoginState();
-  }
-
-  // Attempt RFID auto-login
-  try {
-    await autoLoginFromRfid(data.current);
-  } catch (error) {
-    console.error("RFID auto-login failed:", error);
-  }
-
-  // Update header
-  document.getElementById("user-display").innerText = data.current.user_id || "Awaiting Tap...";
-  document.getElementById("rep-display").innerText = data.current.rep_count ?? 0;
-
-  const updatedAt = data.current.updated_at;
-  if (updatedAt) {
-    document.getElementById("last-update").innerText = new Date(updatedAt).toLocaleTimeString();
-  }
-
-  const errorBanner = document.getElementById("global-error-banner");
-  if (errorBanner) {
-    if (data.current.ai_status === "Access Denied") {
-        errorBanner.style.display = "flex";
-        document.getElementById("error-message").innerText = data.current.feedback_text || "Access Denied: Tap at entrance first.";
-    } else {
-        errorBanner.style.display = "none";
+// --- Auth & Session Helpers ---
+async function performAutoLogin(rfid) {
+    try {
+        const res = await apiFetch('/auth/rfid-login', {
+            method: 'POST',
+            body: JSON.stringify({ rfid_uid: rfid })
+        });
+        if (res) {
+            state.auth = { rfidUid: rfid, token: res.access_token, member: res.member };
+            localStorage.setItem('smartGymAutoLogin', JSON.stringify(state.auth));
+        }
+    } catch (e) {
+        console.warn("Auto-login failed:", e.message);
     }
-  }
-
-  // Update all dashboard sections
-  updateAICoach(data.current, data.feeds);
-  updateGuidance(data.current);
-  updateChart(data.feeds);
-  runRestOptimizer(data.current.rep_count);
-  updateHistory(data.history);
-  updateMachineState(data.current);
-  updateMemberCard(data.current);
 }
 
-// ──────────────────────────────────────────────
-//  Event listeners & bootstrap
-// ──────────────────────────────────────────────
+function clearLocalSession() {
+    state.auth = {};
+    localStorage.removeItem('smartGymAutoLogin');
+    state.lastRepCount = 0;
+}
 
-document.getElementById("tap-button").addEventListener("click", handleTapRfid);
-document.getElementById("start-exercise-button").addEventListener("click", handleSelectExercise);
-document.getElementById("reset-machine-button").addEventListener("click", handleResetMachine);
+function updateOfflineUI() {
+    const statusText = document.getElementById('strip-status-text');
+    const nameEl = document.getElementById('strip-name');
+    if (statusText) {
+        statusText.innerText = "Offline - Retrying...";
+        statusText.style.color = "var(--danger)";
+    }
+    if (nameEl) {
+        nameEl.innerText = "Connection Failed";
+    }
+}
 
-setInterval(loadDashboard, POLL_INTERVAL_MS);
-loadDashboard();
+function startPolling() {
+    setInterval(updateDashboard, CONFIG.POLL_INTERVAL);
+}

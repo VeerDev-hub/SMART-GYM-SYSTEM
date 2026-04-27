@@ -70,6 +70,7 @@ def latest_session_for_member(db: Session, member_id: int | None) -> WorkoutSess
     return (
         db.query(WorkoutSession)
         .filter(WorkoutSession.member_id == member_id)
+        .filter(WorkoutSession.status == "active")
         .order_by(WorkoutSession.started_at.desc())
         .first()
     )
@@ -136,11 +137,7 @@ def machine_tap(payload: MachineTapRequest, db: Session = Depends(get_db)):
         db.commit()
         raise HTTPException(status_code=403, detail="Please tap at the gym entrance first")
     
-    # CLEAR old vision alerts so they don't leak into the next user
-    from models import VisionEvent
-    db.query(VisionEvent).filter(VisionEvent.member_id == live_state.member_id).delete()
-
-    # FORCED RESET for next user
+    # Proceed with machine login since they are in the gym
     live_state.member_id = member.id
     live_state.rfid_uid = payload.rfid_uid.upper()
     live_state.user_label = member.full_name

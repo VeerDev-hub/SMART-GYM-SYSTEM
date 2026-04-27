@@ -11,7 +11,7 @@ const char *WIFI_PASSWORD = "987654321";
 // ──── Backend API ────
 // Set this to the IP address of the machine running the FastAPI backend.
 // Find it with `ipconfig` (Windows) or `ifconfig` / `ip addr` (Linux/Mac).
-const char *BACKEND_URL = "http://172.22.12.52:8080";
+const char *BACKEND_URL = "http://10.44.152.238:8080";
 
 // Device authentication key (must match DEVICE_API_KEY in backend/auth/security.py)
 const char *DEVICE_KEY = "demo-device-key";

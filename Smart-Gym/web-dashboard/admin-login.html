@@ -3,72 +3,77 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Gym | Admin Access</title>
-    <link rel="stylesheet" href="style.css">
+    <title>GymOS | Secure Login</title>
+    <link rel="stylesheet" href="style.css?v=3.0">
 </head>
-<body>
-    <div class="auth-wrapper">
-        <div class="auth-card">
-            <div style="text-align: center; margin-bottom: 24px;">
-                <h1 style="font-weight: 800; font-size: 1.5rem; letter-spacing: -0.5px;">ADMIN<span>CONSOLE</span></h1>
-                <p class="text-sm text-muted" style="margin-top: 8px;">Enter credentials for management access</p>
+<body style="display: flex; align-items: center; justify-content: center; min-height: 100vh; background: var(--bg-black);">
+    <div class="metric-card" style="width: 100%; max-width: 400px; padding: 50px 40px; text-align: center; border-color: var(--accent);">
+        <div class="brand" style="margin-bottom: 40px;">
+            <h1 style="font-size: 2rem;">GYM<span>OS</span></h1>
+            <p style="font-size: 0.7rem; color: var(--text-dim); letter-spacing: 3px; margin-top: 10px; text-transform: uppercase;">Administrative HQ</p>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 20px; text-align: left;">
+            <div>
+                <label style="display:block; margin-bottom:8px; font-size:0.65rem; font-weight:700; color:var(--text-dim); letter-spacing: 1px;">IDENTIFIER</label>
+                <input type="text" id="username" class="rfid-manual-input" placeholder="Admin ID" style="width:100%;">
+            </div>
+            <div>
+                <label style="display:block; margin-bottom:8px; font-size:0.65rem; font-weight:700; color:var(--text-dim); letter-spacing: 1px;">SECURITY KEY</label>
+                <input type="password" id="password" class="rfid-manual-input" placeholder="••••••••" style="width:100%;">
             </div>
             
-            <div class="form-group">
-                <label>Username</label>
-                <input type="text" id="username" class="form-control" placeholder="admin" autocomplete="username">
-            </div>
+            <button id="login-btn" class="btn btn-primary" style="width: 100%; margin-top: 10px;" onclick="handleLogin()">Establish Connection</button>
             
-            <div class="form-group">
-                <label>Password</label>
-                <input type="password" id="password" class="form-control" placeholder="••••••••" autocomplete="current-password">
+            <div id="login-error" style="display:none; color: var(--rose); font-size: 0.8rem; text-align: center; margin-top: 10px; font-weight: 600;">
+                Invalid credentials. Access denied.
             </div>
-            
-            <button class="btn btn-primary" style="width: 100%; margin-top: 8px;" onclick="handleLogin()">Sign In</button>
-            <div id="error" class="text-sm" style="color: var(--danger); margin-top: 16px; display: none; text-align: center;"></div>
+        </div>
+
+        <div style="margin-top: 40px; border-top: 1px solid var(--border-glass); padding-top: 20px;">
+            <a href="index.html" style="color: var(--text-dim); text-decoration: none; font-size: 0.8rem; font-weight: 600;">Back to Operations</a>
         </div>
     </div>
 
     <script>
-        const BACKEND_URL = `http://${window.location.hostname}:8080`;
-        
+        // The BACKEND_URL is automatically updated by run.py
+        const BACKEND_URL = "http://10.44.152.238:8080";
         async function handleLogin() {
             const user = document.getElementById('username').value;
             const pass = document.getElementById('password').value;
-            const err = document.getElementById('error');
-            
-            err.style.display = 'none';
-            
+            const btn = document.getElementById('login-btn');
+            const error = document.getElementById('login-error');
+
+            if (!user || !pass) return;
+
+            btn.innerText = "Authenticating...";
+            btn.disabled = true;
+            error.style.display = 'none';
+
             try {
                 const response = await fetch(`${BACKEND_URL}/auth/login`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ username: user, password: pass })
                 });
-                
-                if (!response.ok) {
-                    err.style.display = 'block';
-                    err.innerText = "Invalid credentials.";
-                    return;
+
+                if (response.ok) {
+                    const data = await response.json();
+                    localStorage.setItem('gymAdminToken', data.access_token);
+                    window.location.href = "admin.html";
+                } else {
+                    error.style.display = 'block';
                 }
-                
-                const data = await response.json();
-                
-                if (data.role !== 'admin') {
-                    err.style.display = 'block';
-                    err.innerText = "Admin privileges required.";
-                    return;
-                }
-                
-                localStorage.setItem('gymAdminToken', data.access_token);
-                window.location.href = "admin.html";
-            } catch (e) {
-                err.style.display = 'block';
-                err.innerText = "Network failure.";
+            } catch (err) {
+                alert("Communication failure. Check HQ link.");
+            } finally {
+                btn.innerText = "Establish Connection";
+                btn.disabled = false;
             }
         }
-        
-        document.addEventListener('keypress', function (e) {
+
+        // Allow Enter key to login
+        document.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') handleLogin();
         });
     </script>

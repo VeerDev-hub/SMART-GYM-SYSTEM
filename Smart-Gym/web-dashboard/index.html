@@ -1,189 +1,176 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description"
-        content="Smart Gym Intelligence Dashboard — Real-time AI form analysis, RFID member tracking, and IoT machine monitoring.">
-    <title>Smart Gym | Live Dashboard</title>
-    <link rel="stylesheet" href="style.css?v=1.1">
+    <meta name="description" content="GymOS Live Kiosk — Real-time AI form analysis and IoT tracking.">
+    <title>GymOS | Workout Kiosk</title>
+    <link rel="stylesheet" href="style.css?v=4.0">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
-
 <body>
-
-    <!-- Rep Toast Overlay -->
-    <div id="rep-toast" class="rep-toast" aria-live="polite"></div>
-
     <div class="kiosk-layout">
 
-        <!-- STATUS STRIP (Top Bar) -->
+        <!-- Top Navigation -->
         <header class="status-strip">
             <div class="strip-brand">
-                <span class="logo-gym">SMART</span><span class="logo-iot">GYM</span>
+                <span class="logo-gym">Gym</span><span class="logo-iot" style="color: var(--accent-primary);">OS</span>
             </div>
+            
             <div id="global-error-banner" class="error-banner" style="display: none;">
-                <span class="icon">⚠️</span>
-                <span id="error-message">Please tap your card at the entrance first.</span>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                <span id="error-message">Connection lost</span>
             </div>
 
-            <div class="strip-session-info">
-                <div id="member-avatar" class="member-avatar">?</div>
-                <div class="strip-text">
-                    <div id="strip-name" class="strip-name">Awaiting Tap...</div>
-                    <div id="strip-exercise" class="strip-exercise">No Exercise Selected</div>
+            <div style="display: flex; align-items: center; gap: 20px;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div id="member-avatar" class="member-avatar" style="width: 32px; height: 32px; font-size: 0.9rem;">?</div>
+                    <div style="display: flex; flex-direction: column;">
+                        <span id="strip-name" style="font-weight: 700; font-size: 0.9rem;">Ready for Workout</span>
+                        <span id="strip-exercise" style="color: var(--text-muted); font-size: 0.75rem;">Please select an exercise</span>
+                    </div>
                 </div>
-                <div class="strip-divider"></div>
-                <div class="strip-timer-block">
-                    <div id="session-timer" class="strip-timer">00:00</div>
-                    <div class="strip-timer-label">ELAPSED</div>
+                
+                <div style="width: 1px; height: 24px; background: var(--border-light);"></div>
+                
+                <div style="display: flex; flex-direction: column; align-items: center;">
+                    <span id="session-timer" style="font-family: 'Outfit'; font-weight: 800; font-size: 1rem;">00:00</span>
+                    <span style="font-size: 0.6rem; color: var(--text-muted); text-transform: uppercase;">Duration</span>
                 </div>
-                <div class="strip-divider"></div>
+
+                <div style="width: 1px; height: 24px; background: var(--border-light);"></div>
+                
                 <div class="live-pill">
                     <span class="live-dot-small"></span>
-                    <span id="strip-status-text">READY</span>
+                    <span id="strip-status-text">Live Sync</span>
                 </div>
             </div>
 
-            <a href="admin.html" class="strip-admin-link">Admin Console</a>
+            <div class="nav-links" style="display: flex; gap: 12px;">
+                <a href="user-login.html" class="btn btn-secondary">My Profile</a>
+                <a href="admin-login.html" class="btn btn-secondary" style="border-color: transparent;">Admin</a>
+            </div>
         </header>
 
-        <!-- MAIN CONTENT -->
-        <main class="kiosk-main">
+        <!-- Main Content -->
+        <main style="display: flex; flex-direction: column; gap: 24px;">
 
-            <!-- REP HERO -->
-            <section class="rep-hero" id="rep-hero">
-                <div class="rep-hero-inner">
-                    <div class="rep-label-top">REPS COMPLETED</div>
-                    <div id="rep-display" class="rep-number">0</div>
-                    <div id="rep-subtitle" class="rep-subtitle">Tap your RFID card to begin</div>
-                </div>
+            <!-- Rep Counter Hero -->
+            <section class="metric-card rep-hero">
+                <span class="metric-card-title">Current Set</span>
+                <div id="rep-display" class="rep-number">0</div>
+                <div id="rep-subtitle" class="rep-subtitle">Tap your RFID card or select an exercise to begin</div>
             </section>
 
-            <!-- METRICS ROW -->
-            <section class="metrics-row">
+            <!-- Three Column Grid -->
+            <section style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 24px;">
 
-                <!-- AI Coach Card -->
-                <div class="metric-card coach-display" id="coach-display-card">
-                    <div class="metric-card-header">
-                        <span class="metric-card-title">AI Coach</span>
-                        <div class="quality-header-block">
-                            <div id="quality-indicator" class="quality-dot"></div>
-                            <span id="quality-label">Awaiting Rep</span>
+                <!-- AI Coach Feedback -->
+                <div class="metric-card" id="coach-display-card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+                        <span class="metric-card-title" style="margin-bottom: 0;">AI Coach</span>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <div id="quality-indicator" class="quality-dot quality-good"></div>
+                            <span id="quality-label" style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted);">Ready</span>
                         </div>
                     </div>
-                    <h3 id="ai-status-title">Stand By</h3>
-                    <p id="ai-feedback-text">Position yourself in front of the camera to begin form analysis.</p>
+                    
+                    <h3 id="ai-status-title" style="font-family: 'Outfit'; font-weight: 800; font-size: 1.5rem; margin-bottom: 12px;">Let's get started</h3>
+                    <p id="ai-feedback-text" style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.5;">Position yourself correctly on the machine. I'll provide real-time feedback on your form.</p>
 
-                    <div class="rom-tracker" style="margin-top: 20px;">
-                        <label>Range of Motion</label>
+                    <div style="margin-top: 32px;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                            <span style="font-size: 0.75rem; font-weight: 600; color: var(--text-muted);">Extension Range</span>
+                            <span style="font-size: 0.75rem; font-weight: 700; color: var(--text-main);">Target 100%</span>
+                        </div>
                         <div class="rom-bar-bg">
                             <div id="rom-bar-fill" class="rom-bar-fill"></div>
-                            <div id="rom-marker" class="rom-marker"></div>
-                        </div>
-                        <div class="rom-labels">
-                            <span>0%</span>
-                            <span>Target Zone</span>
-                            <span>100%</span>
+                            <div id="rom-marker" style="position: absolute; top: 0; bottom: 0; left: 80%; width: 2px; background: rgba(255,255,255,0.3);"></div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Quick Stats + Machine Control Card -->
-                <div class="metric-card stats-control-card">
-                    <div class="metric-card-header">
-                        <span class="metric-card-title">Session Stats</span>
-                        <span id="last-update" class="last-update-text"></span>
-                    </div>
-                    <div class="quick-stats">
-                        <div class="qs-item">
-                            <div class="qs-value" id="qs-form">—</div>
-                            <div class="qs-label">Form %</div>
+                <!-- Session Control -->
+                <div class="metric-card">
+                    <span class="metric-card-title">Session Setup</span>
+                    
+                    <div style="display: flex; justify-content: space-around; margin-bottom: 32px; background: var(--bg-input); padding: 16px; border-radius: var(--radius-sm);">
+                        <div style="text-align: center;">
+                            <div id="qs-form" style="font-family: 'Outfit'; font-weight: 800; font-size: 1.8rem; color: var(--accent-primary);">--</div>
+                            <div style="font-size: 0.7rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Form Score</div>
                         </div>
-                        <div class="qs-item">
-                            <div class="qs-value" id="qs-fatigue">—</div>
-                            <div class="qs-label">Fatigue</div>
-                        </div>
-                        <div class="qs-item">
-                            <div class="qs-value" id="qs-visits">—</div>
-                            <div class="qs-label">Total Visits</div>
+                        <div style="width: 1px; background: var(--border-light);"></div>
+                        <div style="text-align: center;">
+                            <div id="qs-fatigue" style="font-family: 'Outfit'; font-weight: 800; font-size: 1.8rem; color: var(--text-main);">--</div>
+                            <div style="font-size: 0.7rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Fatigue Level</div>
                         </div>
                     </div>
 
-                    <div class="section-divider"></div>
-
-                    <!-- Machine Control -->
-                    <div class="machine-control-section">
-                        <div class="control-row">
+                    <div style="display: flex; flex-direction: column; gap: 16px;">
+                        <div style="display: flex; gap: 12px;">
                             <select id="exercise-select" class="exercise-select">
                                 <option value="chest_press">Chest Press</option>
                                 <option value="shoulder_press">Shoulder Press</option>
                                 <option value="bicep_curl">Bicep Curl</option>
                                 <option value="lat_pulldown">Lat Pulldown</option>
                             </select>
-                            <button id="start-exercise-button" class="action-btn">▶ Start</button>
+                            <button id="start-exercise-button" class="btn btn-primary">Start</button>
                         </div>
-                        <div class="control-row">
-                            <input id="rfid-input" type="text" placeholder="Manual RFID override..."
-                                class="rfid-manual-input">
-                            <button id="tap-button" class="action-btn-secondary">Tap</button>
+                        
+                        <div style="display: flex; items-center; gap: 12px;">
+                            <div style="flex: 1; height: 1px; background: var(--border-light); margin: auto;"></div>
+                            <span style="font-size: 0.7rem; color: var(--text-muted); font-weight: 600;">OR</span>
+                            <div style="flex: 1; height: 1px; background: var(--border-light); margin: auto;"></div>
                         </div>
-                        <button id="reset-machine-button" class="reset-btn">↺ Reset Machine State</button>
-                    </div>
 
-                    <div class="section-divider"></div>
-                    <div class="status-chips-row">
-                        <div class="status-chip-mini">Session: <strong id="session-status">Awaiting RFID</strong></div>
-                        <div class="status-chip-mini">Exercise: <strong id="exercise-status">Not selected</strong></div>
+                        <div style="display: flex; gap: 12px;">
+                            <input id="rfid-input" type="text" placeholder="Enter Member ID manually" class="rfid-manual-input">
+                            <button id="tap-button" class="btn btn-secondary">Login</button>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Member Card -->
-                <div class="metric-card member-card">
-                    <div class="metric-card-header">
-                        <span class="metric-card-title">Member Profile</span>
-                        <span id="login-state" class="login-state-badge">Waiting</span>
+                <!-- Member Info -->
+                <div class="metric-card" style="display: flex; flex-direction: column; align-items: center; text-align: center;">
+                    <div style="width: 100%; display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+                        <span class="metric-card-title" style="margin-bottom: 0;">Active Member</span>
+                        <span id="login-state" class="badge badge-neutral">Guest</span>
                     </div>
-                    <div id="member-avatar-large" class="member-avatar-large">?</div>
-                    <div id="member-name" class="member-name-hero">Awaiting Tap...</div>
-                    <div id="member-username" class="member-sub">—</div>
+                    
+                    <div id="member-avatar-large" class="member-avatar" style="width: 80px; height: 80px; font-size: 2.5rem; margin-bottom: 16px; background: var(--bg-input);">?</div>
+                    <h2 id="member-name" style="font-family: 'Outfit'; font-weight: 800; font-size: 1.5rem; margin-bottom: 4px;">Welcome</h2>
+                    <p id="member-username" style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 32px;">Please log in to track progress</p>
 
-                    <div class="member-stat-row">
-                        <div class="ms-item">
-                            <div class="ms-label">Plan</div>
-                            <div id="member-plan" class="ms-value">—</div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; width: 100%; margin-top: auto;">
+                        <div style="background: var(--bg-input); padding: 16px; border-radius: var(--radius-sm);">
+                            <div style="font-size: 0.7rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Membership</div>
+                            <div id="member-plan" style="font-weight: 700; font-size: 1rem; margin-top: 4px;">--</div>
                         </div>
-                        <div class="ms-item">
-                            <div class="ms-label">Status</div>
-                            <div id="member-status" class="ms-value">—</div>
-                        </div>
-                        <div class="ms-item">
-                            <div class="ms-label">Visits</div>
-                            <div id="member-visits" class="ms-value">—</div>
+                        <div style="background: var(--bg-input); padding: 16px; border-radius: var(--radius-sm);">
+                            <div style="font-size: 0.7rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Workouts</div>
+                            <div id="member-visits" style="font-weight: 700; font-size: 1rem; margin-top: 4px;">--</div>
                         </div>
                     </div>
-                    <div class="member-last-entry">Last: <span id="member-last-entry">—</span></div>
                 </div>
+
             </section>
 
-            <!-- ── CHART + HISTORY ROW ── -->
-            <section class="bottom-row">
-                <div class="metric-card chart-card">
-                    <div class="metric-card-header">
-                        <span class="metric-card-title">Form Analysis (Live)</span>
-                    </div>
-                    <div class="chart-wrap">
+            <!-- Bottom Data Row -->
+            <section style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px;">
+                <div class="metric-card">
+                    <span class="metric-card-title">Real-time Form Analysis</span>
+                    <div style="height: 250px; width: 100%;">
                         <canvas id="motionChart"></canvas>
                     </div>
                 </div>
 
-                <div class="metric-card history-card">
-                    <div class="metric-card-header">
-                        <span class="metric-card-title">Session History</span>
+                <div class="metric-card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+                        <span class="metric-card-title" style="margin-bottom: 0;">Recent Sessions</span>
+                        <button id="reset-machine-button" class="btn btn-secondary" style="padding: 4px 12px; font-size: 0.75rem;">Clear Machine</button>
                     </div>
-                    <div id="machine-history" class="history-list">
-                        <p class="empty-state">Awaiting session data...</p>
+                    <div id="machine-history" style="display: flex; flex-direction: column; gap: 12px;">
+                        <div style="padding: 32px; text-align: center; color: var(--text-muted); font-size: 0.9rem;">No workouts recorded recently.</div>
                     </div>
                 </div>
             </section>
@@ -191,11 +178,6 @@
         </main>
     </div>
 
-    <!-- Hidden compatibility shims (script.js references these) -->
-    <div id="user-display" style="display:none"></div>
-    <div id="rest-advice" style="display:none"></div>
-
-    <script src="script.js"></script>
+    <script src="script.js?v=4.3"></script>
 </body>
-
 </html>

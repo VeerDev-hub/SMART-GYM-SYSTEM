@@ -42,62 +42,31 @@ def sync_ip_to_configs(ip):
     """Automatically update config files with the current local IP."""
     log("LAUNCHER", f"Syncing IP {ip} to configuration files...")
     
-    # Update firmware config.h
-    config_h_path = os.path.join(ROOT_DIR, "firmware-machine", "src", "config.h")
-    if os.path.exists(config_h_path):
-        with open(config_h_path, "r", encoding="utf-8") as f:
+    # Update firmware-machine config.h
+    machine_config = os.path.join(ROOT_DIR, "firmware-machine", "include", "config.h")
+    if os.path.exists(machine_config):
+        with open(machine_config, "r") as f:
             lines = f.readlines()
-        with open(config_h_path, "w", encoding="utf-8") as f:
+        with open(machine_config, "w") as f:
             for line in lines:
-                if 'const char *BACKEND_URL = "http://' in line and ':8080";' in line:
-                    f.write(f'const char *BACKEND_URL = "http://{ip}:8080";\n')
+                if line.startswith("#define BACKEND_URL"):
+                    f.write(f'#define BACKEND_URL "http://{ip}:8080"\n')
                 else:
                     f.write(line)
-        log("LAUNCHER", f"Updated {os.path.basename(config_h_path)}")
+        log("LAUNCHER", f"Updated {os.path.basename(machine_config)} with IP {ip}")
 
-    # Update web-dashboard script.js
-    script_js_path = os.path.join(ROOT_DIR, "Smart-Gym", "web-dashboard", "script.js")
-    if os.path.exists(script_js_path):
-        with open(script_js_path, "r", encoding="utf-8") as f:
+    # Update firmware-entrance config.h
+    entrance_config = os.path.join(ROOT_DIR, "firmware-entrance", "include", "config.h")
+    if os.path.exists(entrance_config):
+        with open(entrance_config, "r") as f:
             lines = f.readlines()
-        with open(script_js_path, "w", encoding="utf-8") as f:
+        with open(entrance_config, "w") as f:
             for line in lines:
-                if 'const BACKEND_URL = "http://' in line and ':8080";' in line:
-                    f.write(f'const BACKEND_URL = "http://{ip}:8080";\n')
+                if line.startswith("#define BACKEND_URL"):
+                    f.write(f'#define BACKEND_URL "http://{ip}:8080"\n')
                 else:
                     f.write(line)
-        log("LAUNCHER", f"Updated {os.path.basename(script_js_path)}")
-
-    # Update web-dashboard admin.js
-    admin_js_path = os.path.join(ROOT_DIR, "Smart-Gym", "web-dashboard", "admin.js")
-    if os.path.exists(admin_js_path):
-        with open(admin_js_path, "r", encoding="utf-8") as f:
-            lines = f.readlines()
-        with open(admin_js_path, "w", encoding="utf-8") as f:
-            for line in lines:
-                if 'const BACKEND_URL = "http://' in line and ':8080";' in line:
-                    f.write(f'const BACKEND_URL = "http://{ip}:8080";\n')
-                else:
-                    f.write(line)
-        log("LAUNCHER", f"Updated {os.path.basename(admin_js_path)}")
-
-    # Update new portals
-    extra_files = [
-        os.path.join(ROOT_DIR, "Smart-Gym", "web-dashboard", "admin-login.html"),
-        os.path.join(ROOT_DIR, "Smart-Gym", "web-dashboard", "user-login.html"),
-        os.path.join(ROOT_DIR, "Smart-Gym", "web-dashboard", "user.js"),
-    ]
-    for path in extra_files:
-        if os.path.exists(path):
-            with open(path, "r", encoding="utf-8") as f:
-                lines = f.readlines()
-            with open(path, "w", encoding="utf-8") as f:
-                for line in lines:
-                    if 'const BACKEND_URL = "http://' in line:
-                        f.write(f'        const BACKEND_URL = "http://{ip}:8080";\n')
-                    else:
-                        f.write(line)
-            log("LAUNCHER", f"Updated {os.path.basename(path)}")
+        log("LAUNCHER", f"Updated {os.path.basename(entrance_config)} with IP {ip}")
 
 
 def get_ip():

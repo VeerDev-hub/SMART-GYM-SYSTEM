@@ -1,21 +1,30 @@
-        const BACKEND_URL = `http://${window.location.hostname}:8080`;
+/**
+ * GymOS User Journey Controller V3.0
+ */
 
-// --- AUTH PROTECTION ---
-const userToken = localStorage.getItem('gymUserToken');
-if (!userToken) {
+// The BACKEND_URL is automatically updated by run.py
+        const BACKEND_URL = "http://10.44.152.238:8080";
+
+const CONFIG = {
+    BACKEND_URL: `${BACKEND_URL}/dashboard`
+};
+
+const token = localStorage.getItem('gymUserToken');
+
+// --- Auth Protection ---
+if (!token) {
     window.location.href = "user-login.html";
 }
 
 function userLogout() {
     localStorage.removeItem('gymUserToken');
-    localStorage.removeItem('gymMemberId');
     window.location.href = "user-login.html";
 }
 
-async function fetchUserHistory() {
+async function fetchUserData() {
     try {
-        const response = await fetch(`${BACKEND_URL}/dashboard/user/dashboard`, {
-            headers: { 'Authorization': `Bearer ${userToken}` }
+        const response = await fetch(`${CONFIG.BACKEND_URL}/user/dashboard`, {
+            headers: { 'Authorization': `Bearer ${token}` }
         });
         
         if (response.status === 401) {
@@ -23,68 +32,69 @@ async function fetchUserHistory() {
             return;
         }
 
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
         const data = await response.json();
-        updateUserUI(data);
-    } catch (error) {
-        console.error("Failed to fetch user history:", error);
+        renderDashboard(data);
+    } catch (err) {
+        console.error("Sync Error:", err);
     }
 }
 
-function updateUserUI(data) {
-    // Header
-    document.getElementById('user-name-title').innerText = data.member.full_name;
-    
-    // Stats Summary
-    document.getElementById('total-visits').innerText = data.summary.total_visits;
-    document.getElementById('total-reps').innerText = data.sessions.reduce((acc, s) => acc + s.total_reps, 0);
-    
-    const avgScore = data.sessions.length > 0 
-        ? Math.round(data.sessions.reduce((acc, s) => acc + (s.form_score || 0), 0) / data.sessions.length)
-        : 0;
-    document.getElementById('avg-form').innerText = `${avgScore}%`;
-    document.getElementById('member-status').innerText = data.member.membership_status.toUpperCase();
+function renderDashboard(data) {
+    const { member, summary, sessions } = data;
 
-    // History List
-    const historyList = document.getElementById('history-list');
-    if (data.sessions.length === 0) {
-        historyList.innerHTML = `
-            <div style="padding: 40px; text-align: center; color: var(--text-muted); border: 1px dashed var(--border); border-radius: var(--radius-lg);">
-                <div style="font-size: 2rem; margin-bottom: 8px;">🏋️</div>
-                <div style="font-weight: 600; color: var(--text-main);">No workouts recorded yet</div>
-                <div>Time to hit the gym and start your first session!</div>
-            </div>`;
+    // Personnel Data
+    document.getElementById('user-name-title').innerText = member.full_name;
+    document.getElementById('user-avatar-small').innerText = member.full_name.charAt(0);
+    
+    document.getElementById('total-visits').innerText = summary.total_visits;
+    document.getElementById('member-status').innerText = member.membership_status;
+    
+    // Performance Metrics
+    const lifetimeReps = sessions.reduce((acc, s) => acc + (s.total_reps || 0), 0);
+    document.getElementById('total-reps').innerText = lifetimeReps;
+
+    const formScores = sessions.filter(s => s.form_score != null).map(s => s.form_score);
+    const avgForm = formScores.length > 0 
+        ? Math.round(formScores.reduce((a, b) => a + b, 0) / formScores.length) + "%"
+        : "N/A";
+    document.getElementById('avg-form').innerText = avgForm;
+
+    // Timeline Rendering
+    const list = document.getElementById('history-list');
+    if (sessions.length === 0) {
+        list.innerHTML = '<div style="padding: 80px; text-align: center; color: var(--text-muted);">No workouts recorded yet. Time to hit the gym!</div>';
         return;
     }
 
-    historyList.innerHTML = data.sessions.map(s => `
-        <div class="metric-card" style="display: flex; flex-direction: row; justify-content: space-between; align-items: center; padding: 20px; margin-bottom: 10px;">
-            <div>
-                <h3 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 4px;">${s.machine_name.replaceAll('_', ' ').toUpperCase()}</h3>
-                <div class="text-sm text-muted" style="margin-bottom: 12px;">
-                    ${new Date(s.started_at + (s.started_at.endsWith('Z') ? '' : 'Z')).toLocaleString([], { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+    list.innerHTML = sessions.map(s => `
+        <div class="list-item" style="padding: 32px;">
+            <div style="flex: 1;">
+                <div style="font-weight: 800; font-size: 1.25rem; color: var(--text-main); font-family: 'Outfit';">${s.machine_name.replace('_', ' ')}</div>
+                <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">
+                    ${new Date(s.started_at).toLocaleDateString()} at ${new Date(s.started_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
                 </div>
-                <span class="badge ${s.fatigue_level === 'High' ? 'badge-danger' : 'badge-success'}">
-                    ${s.fatigue_level || 'Normal'} Fatigue
-                </span>
+                ${s.insight ? `<div style="margin-top: 16px; color: var(--text-main); font-size: 0.9rem; background: var(--bg-input); padding: 16px; border-radius: var(--radius-sm); border-left: 3px solid var(--accent-primary); line-height: 1.5;">${s.insight}</div>` : ''}
             </div>
-            
-            <div style="display: flex; gap: 32px; text-align: center;">
-                <div>
-                    <div style="font-size: 1.5rem; font-weight: 800; color: var(--accent);">${s.total_reps}</div>
-                    <div class="text-sm text-muted" style="font-weight: 600; text-transform: uppercase;">Reps</div>
-                </div>
-                <div>
-                    <div style="font-size: 1.5rem; font-weight: 800; color: var(--accent);">${s.form_score || 0}%</div>
-                    <div class="text-sm text-muted" style="font-weight: 600; text-transform: uppercase;">Form</div>
-                </div>
-                <div>
-                    <div style="font-size: 1.5rem; font-weight: 800; color: var(--accent);">${Math.round(s.duration_ms / 60000)}m</div>
-                    <div class="text-sm text-muted" style="font-weight: 600; text-transform: uppercase;">Time</div>
+            <div style="text-align: right; min-width: 150px; display: flex; flex-direction: column; align-items: flex-end;">
+                <div style="font-family: 'Outfit'; font-weight: 900; font-size: 2.5rem; color: var(--accent-primary); line-height: 1;">${s.total_reps}</div>
+                <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; margin-top: 4px;">Total Reps</div>
+                <div class="badge ${getFormClass(s.form_score)}" style="margin-top: 16px;">
+                    Form Score: ${s.form_score ? s.form_score + '%' : 'N/A'}
                 </div>
             </div>
         </div>
     `).join('');
 }
 
-// Initial fetch
-fetchUserHistory();
+function getFormClass(score) {
+    if (!score) return 'badge-neutral';
+    if (score >= 90) return 'badge-success';
+    if (score >= 70) return 'badge-neutral'; // Neutral styling for okay form
+    return 'badge-danger';
+}
+
+// Start Intelligence Sync
+fetchUserData();
+setInterval(fetchUserData, 10000);

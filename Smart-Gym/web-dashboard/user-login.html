@@ -3,81 +3,84 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Gym | Member Portal</title>
-    <link rel="stylesheet" href="style.css">
-    <style>
-        .rfid-icon {
-            width: 64px; height: 64px;
-            margin: 0 auto 24px;
-            background-color: var(--bg-input);
-            border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            border: 1px solid var(--border);
-        }
-    </style>
+    <title>GymOS | Subject Portal</title>
+    <link rel="stylesheet" href="style.css?v=3.0">
 </head>
-<body>
-    <div class="auth-wrapper">
-        <div class="auth-card">
-            
-            <div class="rfid-icon">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2">
-                    <rect x="2" y="4" width="20" height="16" rx="2"/>
-                    <path d="M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0"/>
-                    <path d="M12 7v1"/>
-                    <path d="M12 16v1"/>
-                </svg>
+<body style="display: flex; align-items: center; justify-content: center; min-height: 100vh; background: var(--bg-black);">
+    <div class="metric-card" style="width: 100%; max-width: 400px; padding: 50px 40px; text-align: center; border-color: var(--cyan);">
+        <div class="brand" style="margin-bottom: 40px;">
+            <h1 style="font-size: 2rem;">MY<span>JOURNEY</span></h1>
+            <p style="font-size: 0.7rem; color: var(--text-dim); letter-spacing: 3px; margin-top: 10px; text-transform: uppercase;">Personnel Access Terminal</p>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 24px;">
+            <div style="background: rgba(0, 229, 255, 0.03); border: 1px dashed var(--cyan-glow); padding: 30px; border-radius: 20px;">
+                <div class="live-dot-small" style="background: var(--cyan); box-shadow: 0 0 10px var(--cyan); margin: 0 auto 15px;"></div>
+                <p style="font-size: 0.9rem; font-weight: 600; color: #fff;">Please tap your RFID card</p>
+                <p style="font-size: 0.7rem; color: var(--text-dim); margin-top: 5px;">Awaiting secure transmission...</p>
+            </div>
+
+            <div style="height: 1px; background: var(--border-glass); position: relative; margin: 10px 0;">
+                <span style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--bg-card); padding: 0 10px; font-size: 0.6rem; color: var(--text-dim); font-weight: 800;">OR MANUAL OVERRIDE</span>
+            </div>
+
+            <div style="text-align: left;">
+                <label style="display:block; margin-bottom:8px; font-size:0.65rem; font-weight:700; color:var(--text-dim); letter-spacing: 1px;">SYSTEM UID (RFID)</label>
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" id="rfid-input" class="rfid-manual-input" placeholder="HEX CODE" style="flex: 1; font-size: 0.85rem;">
+                    <button id="login-btn" class="btn btn-primary" onclick="handleRfidLogin()" style="padding: 0 20px;">Link</button>
+                </div>
             </div>
             
-            <div style="text-align: center; margin-bottom: 24px;">
-                <h1 style="font-weight: 800; font-size: 1.5rem; letter-spacing: -0.5px;">MEMBER<span>PORTAL</span></h1>
-                <p class="text-sm text-muted" style="margin-top: 8px;">Scan RFID card to view workout history</p>
+            <div id="login-error" style="display:none; color: var(--rose); font-size: 0.8rem; text-align: center; margin-top: 5px; font-weight: 600;">
+                Subject not found in registry.
             </div>
-            
-            <div class="form-group">
-                <input type="text" id="rfid-uid" class="form-control" placeholder="8-Digit HEX UID" style="text-align: center; font-family: monospace; letter-spacing: 2px;">
-            </div>
-            
-            <button class="btn btn-primary" style="width: 100%; margin-top: 8px;" onclick="handleLogin()">Unlock Progress</button>
-            <div id="error" class="text-sm" style="color: var(--danger); margin-top: 16px; display: none; text-align: center;"></div>
+        </div>
+
+        <div style="margin-top: 40px; border-top: 1px solid var(--border-glass); padding-top: 20px;">
+            <a href="index.html" style="color: var(--text-dim); text-decoration: none; font-size: 0.8rem; font-weight: 600;">Back to Operations</a>
         </div>
     </div>
 
     <script>
-        const BACKEND_URL = `http://${window.location.hostname}:8080`;
-        
-        async function handleLogin() {
-            const uid = document.getElementById('rfid-uid').value.trim().toUpperCase();
-            const err = document.getElementById('error');
-            
-            err.style.display = 'none';
-            if (!uid) return;
+        // The BACKEND_URL is automatically updated by run.py
+        const BACKEND_URL = "http://10.44.152.238:8080";
+        async function handleRfidLogin() {
+            const rfid = document.getElementById('rfid-input').value.trim();
+            const btn = document.getElementById('login-btn');
+            const error = document.getElementById('login-error');
+
+            if (!rfid) return;
+
+            btn.innerText = "...";
+            btn.disabled = true;
+            error.style.display = 'none';
 
             try {
                 const response = await fetch(`${BACKEND_URL}/auth/rfid-login`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ rfid_uid: uid })
+                    body: JSON.stringify({ rfid_uid: rfid })
                 });
-                
-                if (!response.ok) {
-                    err.style.display = 'block';
-                    err.innerText = "RFID not recognized.";
-                    return;
+
+                if (response.ok) {
+                    const data = await response.json();
+                    localStorage.setItem('gymUserToken', data.access_token);
+                    window.location.href = "user.html";
+                } else {
+                    error.style.display = 'block';
                 }
-                
-                const data = await response.json();
-                localStorage.setItem('gymUserToken', data.access_token);
-                localStorage.setItem('gymMemberId', data.member.id);
-                window.location.href = "user.html";
-            } catch (e) {
-                err.style.display = 'block';
-                err.innerText = "Network failure.";
+            } catch (err) {
+                alert("Comm-link failure. Check node connection.");
+            } finally {
+                btn.innerText = "Link";
+                btn.disabled = false;
             }
         }
 
-        document.addEventListener('keypress', function (e) {
-            if (e.key === 'Enter') handleLogin();
+        // Allow Enter key
+        document.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') handleRfidLogin();
         });
     </script>
 </body>
