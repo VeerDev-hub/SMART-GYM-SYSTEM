@@ -36,8 +36,8 @@
     </div>
 
     <script>
-        // The BACKEND_URL is automatically updated by run.py
-        const BACKEND_URL = "http://10.44.152.238:8080";
+        // The BACKEND_URL dynamically resolves based on the browser's current address
+        const BACKEND_URL = `http://${window.location.hostname}:8080`;
         async function handleLogin() {
             const user = document.getElementById('username').value;
             const pass = document.getElementById('password').value;
@@ -65,7 +65,7 @@
                     error.style.display = 'block';
                 }
             } catch (err) {
-                alert("Communication failure. Check HQ link.");
+                alert(`Comm-link failure to ${BACKEND_URL}. Check node connection.`);
             } finally {
                 btn.innerText = "Establish Connection";
                 btn.disabled = false;

@@ -43,30 +43,17 @@ def sync_ip_to_configs(ip):
     log("LAUNCHER", f"Syncing IP {ip} to configuration files...")
     
     # Update firmware-machine config.h
-    machine_config = os.path.join(ROOT_DIR, "firmware-machine", "include", "config.h")
+    machine_config = os.path.join(ROOT_DIR, "firmware-machine", "src", "config.h")
     if os.path.exists(machine_config):
         with open(machine_config, "r") as f:
             lines = f.readlines()
         with open(machine_config, "w") as f:
             for line in lines:
-                if line.startswith("#define BACKEND_URL"):
-                    f.write(f'#define BACKEND_URL "http://{ip}:8080"\n')
+                if line.startswith("const char *BACKEND_URL"):
+                    f.write(f'const char *BACKEND_URL = "http://{ip}:8080";\n')
                 else:
                     f.write(line)
         log("LAUNCHER", f"Updated {os.path.basename(machine_config)} with IP {ip}")
-
-    # Update firmware-entrance config.h
-    entrance_config = os.path.join(ROOT_DIR, "firmware-entrance", "include", "config.h")
-    if os.path.exists(entrance_config):
-        with open(entrance_config, "r") as f:
-            lines = f.readlines()
-        with open(entrance_config, "w") as f:
-            for line in lines:
-                if line.startswith("#define BACKEND_URL"):
-                    f.write(f'#define BACKEND_URL "http://{ip}:8080"\n')
-                else:
-                    f.write(line)
-        log("LAUNCHER", f"Updated {os.path.basename(entrance_config)} with IP {ip}")
 
 
 def get_ip():
@@ -184,6 +171,12 @@ def start_dashboard_server(port):
 
         def log_message(self, format, *args):
             pass
+
+        def end_headers(self):
+            self.send_header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+            self.send_header('Pragma', 'no-cache')
+            self.send_header('Expires', '0')
+            super().end_headers()
 
     server = http.server.HTTPServer(("0.0.0.0", port), QuietHandler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)

@@ -43,8 +43,8 @@
     </div>
 
     <script>
-        // The BACKEND_URL is automatically updated by run.py
-        const BACKEND_URL = "http://10.44.152.238:8080";
+        // The BACKEND_URL dynamically resolves based on the browser's current address
+        const BACKEND_URL = `http://${window.location.hostname}:8080`;
         async function handleRfidLogin() {
             const rfid = document.getElementById('rfid-input').value.trim();
             const btn = document.getElementById('login-btn');
@@ -71,7 +71,7 @@
                     error.style.display = 'block';
                 }
             } catch (err) {
-                alert("Comm-link failure. Check node connection.");
+                alert(`Comm-link failure to ${BACKEND_URL}. Check node connection.`);
             } finally {
                 btn.innerText = "Link";
                 btn.disabled = false;

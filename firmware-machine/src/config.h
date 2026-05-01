@@ -11,14 +11,15 @@ const char *WIFI_PASSWORD = "987654321";
 // ──── Backend API ────
 // Set this to the IP address of the machine running the FastAPI backend.
 // Find it with `ipconfig` (Windows) or `ifconfig` / `ip addr` (Linux/Mac).
-const char *BACKEND_URL = "http://10.44.152.238:8080";
+const char *BACKEND_URL = "http://172.20.36.25:8080";
 
 // Device authentication key (must match DEVICE_API_KEY in backend/auth/security.py)
 const char *DEVICE_KEY = "demo-device-key";
 
 // ──── ThingSpeak (optional cloud logging) ────
 const bool USE_THINGSPEAK          = true;
-const char *THINGSPEAK_API_KEY     = "J3Y45VJY3AOW1DZ3";
+const char *THINGSPEAK_API_KEY_ENTRANCE = "M3SKTUX63XY5WW44";
+const char *THINGSPEAK_API_KEY_MACHINE  = "F71D9JRSZWJ4BHYU";
 const char *THINGSPEAK_URL         = "http://api.thingspeak.com/update";
 
 // ──── Pin Mapping ────

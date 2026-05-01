@@ -139,8 +139,8 @@ bool getJson(const String &path, JsonDocument &doc) {
   return !deserializeJson(doc, body);
 }
 
-bool sendThingSpeakUpdate(int field1, int field2, float field3, float field4, const String &statusText) {
-  if (!USE_THINGSPEAK || String(THINGSPEAK_API_KEY) == "YOUR_THINGSPEAK_WRITE_API_KEY") {
+bool sendThingSpeakUpdate(const char* apiKey, int field1, int field2, float field3, float field4, const String &statusText) {
+  if (!USE_THINGSPEAK || String(apiKey) == "YOUR_THINGSPEAK_WRITE_API_KEY") {
     return false;
   }
 
@@ -150,7 +150,7 @@ bool sendThingSpeakUpdate(int field1, int field2, float field3, float field4, co
   }
 
   HTTPClient http;
-  String url = String(THINGSPEAK_URL) + "?api_key=" + THINGSPEAK_API_KEY + "&field1=" + String(field1) +
+  String url = String(THINGSPEAK_URL) + "?api_key=" + String(apiKey) + "&field1=" + String(field1) +
                "&field2=" + String(field2) + "&field3=" + String(field3, 2) + "&field4=" + String(field4, 2) +
                "&status=" + statusText;
   http.begin(url);
@@ -174,10 +174,10 @@ void postEntranceEvent(JsonDocument &eventDoc) {
     payload["reason"] = eventDoc["reason"] | "membership_active";
     payload["source"] = "entrance_station_uart";
     postJson("/entry-log", payload);
-    sendThingSpeakUpdate(payload["granted"] ? 1 : 0, 0, 0.0f, 0.0f,
+    sendThingSpeakUpdate(THINGSPEAK_API_KEY_ENTRANCE, payload["granted"] ? 1 : 0, 0, 0.0f, 0.0f,
                          String("entry_") + payload["rfid_uid"].as<const char *>());
   } else if (String(eventType) == "gate_opened" || String(eventType) == "entry_completed") {
-    sendThingSpeakUpdate(0, 0, 0.0f, 0.0f, String(eventType) + "_" + String(eventDoc["rfid_uid"] | ""));
+    sendThingSpeakUpdate(THINGSPEAK_API_KEY_ENTRANCE, 0, 0, 0.0f, 0.0f, String(eventType) + "_" + String(eventDoc["rfid_uid"] | ""));
   }
 }
 
@@ -244,7 +244,7 @@ bool postMachineTap(const String &uid) {
     Serial.printf("Member identified: %s\n", session.memberName.c_str());
   }
   Serial.println("Waiting for exercise selection from dashboard/cloud");
-  sendThingSpeakUpdate(0, 0, 0.0f, 0.0f, "member_tapped");
+  sendThingSpeakUpdate(THINGSPEAK_API_KEY_MACHINE, 0, 0, 0.0f, 0.0f, "member_tapped");
   return true;
 }
 
@@ -266,7 +266,7 @@ void beginTracking(const String &sessionCode, const String &exerciseType) {
   session.repState = WAIT_FOR_PUSH;
 
   Serial.printf("Tracking enabled for %s, session=%s\n", exerciseType.c_str(), sessionCode.c_str());
-  sendThingSpeakUpdate(1, 0, 0.0f, 0.0f, "tracking_started");
+  sendThingSpeakUpdate(THINGSPEAK_API_KEY_MACHINE, 1, 0, 0.0f, 0.0f, "tracking_started");
 }
 
 void pollMachineState() {
@@ -337,7 +337,7 @@ void sendTelemetry(float distanceValue, bool repCompleted) {
   postJson("/session/sample", doc);
 
   if (repCompleted) {
-    sendThingSpeakUpdate(session.repCount, int(distanceValue * 10), session.peakDistance - session.minDistance, 0.0f,
+    sendThingSpeakUpdate(THINGSPEAK_API_KEY_MACHINE, session.repCount, int(distanceValue * 10), session.peakDistance - session.minDistance, 0.0f,
                          "rep_completed");
   }
 }
@@ -403,7 +403,7 @@ void endSession(bool completed) {
     Serial.println("Session reset locally. Syncing with backend...");
 
     postJson("/session/end", doc);
-    sendThingSpeakUpdate(finalReps, 0, avgRom, avgSpeed, completed ? "session_completed" : "session_stopped");
+    sendThingSpeakUpdate(THINGSPEAK_API_KEY_MACHINE, finalReps, 0, avgRom, avgSpeed, completed ? "session_completed" : "session_stopped");
 
     Serial.printf("Session ended successfully, reps=%d\n", finalReps);
   } else {

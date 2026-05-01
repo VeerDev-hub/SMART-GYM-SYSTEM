@@ -2,8 +2,8 @@
  * GymOS User Journey Controller V3.0
  */
 
-// The BACKEND_URL is automatically updated by run.py
-        const BACKEND_URL = "http://10.44.152.238:8080";
+// The BACKEND_URL dynamically resolves based on the browser's current address
+const BACKEND_URL = `http://${window.location.hostname}:8080`;
 
 const CONFIG = {
     BACKEND_URL: `${BACKEND_URL}/dashboard`
