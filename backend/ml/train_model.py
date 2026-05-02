@@ -1,52 +1,66 @@
-from pathlib import Path
-
 import joblib
+import csv
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
+from pathlib import Path
 
+def load_biomechanical_study_data(csv_path: Path):
+    """
+    Loads pre-collected biomechanical study data from a CSV file.
+    The dataset contains correlated features from resistance training subjects.
+    """
+    X = []
+    y = []
+    
+    if not csv_path.exists():
+        raise FileNotFoundError(f"Training dataset not found at {csv_path}")
 
-def build_training_data():
-    rows = []
-    labels = []
-    rng = np.random.default_rng(42)
+    with open(csv_path, 'r') as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            X.append([
+                float(row['reps']),
+                float(row['avg_duration']),
+                float(row['avg_rom']),
+                float(row['consistency']),
+                float(row['rom_dropoff'])
+            ])
+            y.append(int(row['fatigue']))
 
-    for _ in range(350):
-        total_reps = int(rng.integers(6, 26))
-        avg_rep_duration = float(rng.uniform(0.9, 3.2))
-        avg_rom = float(rng.uniform(260, 760))
-        speed_consistency = float(rng.uniform(0.08, 0.95))
-        rom_dropoff = float(rng.uniform(0, 220))
+    return np.array(X), np.array(y)
 
-        fatigue = int(
-            total_reps > 18
-            or avg_rep_duration > 2.4
-            or speed_consistency < 0.22
-            or rom_dropoff > 120
-        )
-
-        rows.append([total_reps, avg_rep_duration, avg_rom, speed_consistency, rom_dropoff])
-        labels.append(fatigue)
-
-    return np.array(rows), np.array(labels)
-
-
-def train_and_save_model(output_path: Path):
-    features, labels = build_training_data()
-    pipeline = Pipeline(
-        steps=[
-            ("scaler", StandardScaler()),
-            ("model", RandomForestClassifier(n_estimators=160, max_depth=6, random_state=42)),
-        ]
-    )
-    pipeline.fit(features, labels)
+def train_and_save_model(output_path: Path, data_path: Path):
+    """
+    Trains a Random Forest Classifier on the pre-collected dataset.
+    Uses a Pipeline to ensure scaling is consistent during real-time inference.
+    """
+    print(f"[INFO] Loading training dataset from {data_path.name}...")
+    X, y = load_biomechanical_study_data(data_path)
+    
+    # Random Forest is ideal for identifying non-linear patterns in fatigue
+    pipeline = Pipeline(steps=[
+        ('scaler', StandardScaler()),
+        ('classifier', RandomForestClassifier(
+            n_estimators=250, 
+            max_depth=8, 
+            min_samples_leaf=3,
+            random_state=42
+        ))
+    ])
+    
+    print(f"[INFO] Training model on {len(X)} biomechanical samples...")
+    pipeline.fit(X, y)
+    
     joblib.dump(pipeline, output_path)
     return output_path
 
-
 if __name__ == "__main__":
-    target = Path(__file__).resolve().parent / "fatigue_model.joblib"
-    train_and_save_model(target)
-    print(f"Saved model to {target}")
+    current_dir = Path(__file__).resolve().parent
+    data_file = current_dir / "gym_biomechanics_study.csv"
+    model_file = current_dir / "fatigue_model.joblib"
+    
+    train_and_save_model(model_file, data_file)
+    print(f"[SUCCESS] Fatigue analysis model exported: {model_file}")
 

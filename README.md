@@ -1,10 +1,10 @@
-# 🏋️ Smart Gym IoT Intelligence System
+# Smart Gym IoT Intelligence System
 
 A **real-time gym monitoring platform** that integrates RFID access control, ultrasonic rep tracking, AI-powered form analysis (YOLOv8 Pose), and machine-learning fatigue prediction into a unified IoT ecosystem.
 
 ---
 
-## 📐 Architecture Overview
+## Architecture Overview
 
 ```
 ┌──────────────┐  UART   ┌──────────────────────┐  HTTP   ┌────────────────┐
@@ -28,7 +28,7 @@ A **real-time gym monitoring platform** that integrates RFID access control, ult
 
 ---
 
-## 🗂️ Project Structure
+## Project Structure
 
 ```
 IoT/
@@ -55,7 +55,7 @@ IoT/
 
 ---
 
-## 🚀 Quick Start (Software Only)
+## Quick Start (Software Only)
 
 ### Prerequisites
 - Python 3.10+
@@ -88,7 +88,7 @@ Navigate to **http://127.0.0.1:3000** in your browser.
 
 ---
 
-## 🔌 Hardware Setup
+## Hardware Setup
 
 ### Components Required
 
@@ -139,7 +139,7 @@ Navigate to **http://127.0.0.1:3000** in your browser.
 
 ---
 
-## 📡 API Endpoints Reference
+## API Endpoints Reference
 
 ### Authentication
 | Method | Endpoint         | Description               |
@@ -177,7 +177,7 @@ Navigate to **http://127.0.0.1:3000** in your browser.
 
 ---
 
-## 🧠 ML Prediction
+## ML Prediction
 
 After each workout session ends, the backend calculates:
 
@@ -189,7 +189,7 @@ The model auto-trains on first run using synthetic data and is saved as `fatigue
 
 ---
 
-## 🧪 Testing Without Hardware
+## Testing Without Hardware
 
 Use the built-in **demo simulator** to test the full flow:
 
@@ -209,7 +209,7 @@ Or use the **Dashboard UI** directly:
 
 ---
 
-## 👥 Demo Accounts
+## Demo Accounts
 
 | Name              | Username  | RFID UID   | Plan      | Status   |
 |-------------------|-----------|------------|-----------|----------|
@@ -225,6 +225,6 @@ Or use the **Dashboard UI** directly:
 
 ---
 
-## 📄 License
+## License
 
 This project was built as an IoT academic / portfolio project.

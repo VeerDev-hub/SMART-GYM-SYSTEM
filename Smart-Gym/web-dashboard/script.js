@@ -85,6 +85,7 @@ async function updateDashboard() {
         handleSessionState(current);
         
         updateHeader(current);
+        updateSessionButtons(current);
         updateRepHero(current);
         updateAICoach(current, feeds);
         updateROMTracker(current);
@@ -146,6 +147,23 @@ function updateHeader(current) {
         timerEl.innerText = `${mins}:${secs}`;
     } else {
         timerEl.innerText = '00:00';
+    }
+}
+
+function updateSessionButtons(current) {
+    const btn = document.getElementById('start-exercise-button');
+    if (!btn) return;
+
+    if (current.exercise_status === 'tracking') {
+        btn.innerText = "Stop";
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-danger');
+        btn.onclick = handleStopExercise; 
+    } else {
+        btn.innerText = "Start";
+        btn.classList.remove('btn-danger');
+        btn.classList.add('btn-primary');
+        btn.onclick = handleStartExercise;
     }
 }
 
@@ -408,6 +426,19 @@ async function handleStartExercise() {
             });
         }
     }, 1000);
+}
+
+async function handleStopExercise() {
+    if (!confirm("End your exercise and save progress?")) return;
+    
+    // Tell backend to reset the machine state (which ends active sessions)
+    await apiFetch('/machine/reset', { method: 'POST' });
+    clearLocalSession();
+    
+    const display = document.getElementById('rep-display');
+    const subtitle = document.getElementById('rep-subtitle');
+    display.innerText = "DONE";
+    subtitle.innerText = "Workout saved. Great job!";
 }
 
 async function handleResetMachine() {

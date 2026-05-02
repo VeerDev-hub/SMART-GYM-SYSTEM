@@ -56,7 +56,10 @@
 
                 <!-- Live Telemetry -->
                 <section class="metric-card">
-                    <span class="metric-card-title">Live Machine Activity</span>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+                        <span class="metric-card-title" style="margin-bottom: 0;">Live Machine Activity</span>
+                        <button class="btn btn-danger" onclick="stopAllExercises()" style="font-size: 0.8rem; padding: 8px 16px;">Stop All Exercises</button>
+                    </div>
                     <div id="active-sessions-table" style="margin-top: 16px;">
                         <div style="padding: 40px; color: var(--text-muted); text-align: center;">Scanning machines...</div>
                     </div>

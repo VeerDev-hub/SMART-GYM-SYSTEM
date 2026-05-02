@@ -110,6 +110,7 @@ function updateUI(data) {
                         <th style="padding: 16px 8px;">Machine</th>
                         <th style="padding: 16px 8px;">Started At</th>
                         <th style="padding: 16px 8px; text-align: right;">Reps</th>
+                        <th style="padding: 16px 8px; text-align: right;">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -119,6 +120,9 @@ function updateUI(data) {
                             <td style="padding: 16px 8px; font-size: 0.85rem; color: var(--text-muted);">${s.machine_name}</td>
                             <td style="padding: 16px 8px; font-size: 0.85rem; color: var(--text-muted); font-family: monospace;">${formatTime(s.started_at)}</td>
                             <td style="padding: 16px 8px; text-align: right; color: var(--accent-primary); font-family: 'Outfit'; font-weight: 800; font-size: 1.2rem;">${s.total_reps}</td>
+                            <td style="padding: 16px 8px; text-align: right;">
+                                <button class="btn btn-danger" style="padding: 4px 10px; font-size: 0.7rem;" onclick="stopSpecificSession('${s.session_id}')">Stop</button>
+                            </td>
                         </tr>
                     `).join('')}
                 </tbody>
@@ -188,28 +192,65 @@ async function confirmDelete(id, name) {
 }
 
 async function handleManualEntrance() {
-    const rfidInput = document.getElementById("manual-entrance-rfid");
-    const uid = rfidInput.value.trim().toUpperCase();
-    if (!uid) return;
-    
+    const rfid = document.getElementById('manual-entrance-rfid').value;
+    if (!rfid) return;
+
     try {
-        const response = await fetch(`${CONFIG.BASE_API_URL}/entry-log`, {
+        const response = await fetch(`${CONFIG.BASE_API_URL}/auth/rfid-login`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ rfid_uid: uid })
+            headers: getHeaders(),
+            body: JSON.stringify({ rfid_uid: rfid })
         });
-        
-        if (response.ok) {
-            rfidInput.value = "";
-            fetchAdminData();
-        } else {
-            alert("Access Denied for UID " + uid);
-        }
-    } catch (e) {
-        alert("Network error.");
+        const data = await response.json();
+        alert(data.granted ? `Access Granted: Welcome ${data.name}` : `Access Denied: ${data.reason}`);
+        fetchAdminData();
+    } catch (error) {
+        alert("Entrance service unavailable.");
     }
 }
 
-// Initial Sync & Polling
-fetchAdminData();
+async function stopAllExercises() {
+    if (!confirm("Are you sure you want to stop all active exercises and clear machine states?")) return;
+    
+    try {
+        const response = await fetch(`${CONFIG.BASE_API_URL}/machine/reset`, {
+            method: 'POST',
+            headers: getHeaders()
+        });
+        
+        if (response.ok) {
+            console.log("System Reset: All machines cleared.");
+            fetchAdminData();
+        } else {
+            throw new Error(`HTTP ${response.status}`);
+        }
+    } catch (error) {
+        console.error("Reset Error:", error);
+        alert("Failed to reset machines. Check network connection.");
+    }
+}
+
+async function stopSpecificSession(sessionId) {
+    if (!confirm("Are you sure you want to force-stop this individual session?")) return;
+    
+    try {
+        const response = await fetch(`${CONFIG.BASE_API_URL}/session/stop/${sessionId}`, {
+            method: 'POST',
+            headers: getHeaders()
+        });
+        
+        if (response.ok) {
+            console.log(`Session ${sessionId} stopped.`);
+            fetchAdminData();
+        } else {
+            throw new Error(`HTTP ${response.status}`);
+        }
+    } catch (error) {
+        console.error("Stop Error:", error);
+        alert("Failed to stop session.");
+    }
+}
+
+// Start auto-refresh cycle
 setInterval(fetchAdminData, CONFIG.POLL_INTERVAL);
+fetchAdminData();

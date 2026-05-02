@@ -83,7 +83,8 @@ void ensureWifi() {
   Serial.println();
 }
 
-bool postJson(const String &path, JsonDocument &doc, String *responseBody = nullptr) {
+bool postJson(const String &path, JsonDocument &doc,
+              String *responseBody = nullptr) {
   ensureWifi();
   if (WiFi.status() != WL_CONNECTED) {
     Serial.println("WiFi unavailable, skipping request");
@@ -106,7 +107,8 @@ bool postJson(const String &path, JsonDocument &doc, String *responseBody = null
   http.end();
 
   if (statusCode < 0) {
-    Serial.printf("HTTP error: %d (%s)\n", statusCode, http.errorToString(statusCode).c_str());
+    Serial.printf("HTTP error: %d (%s)\n", statusCode,
+                  http.errorToString(statusCode).c_str());
     return false;
   }
 
@@ -139,8 +141,10 @@ bool getJson(const String &path, JsonDocument &doc) {
   return !deserializeJson(doc, body);
 }
 
-bool sendThingSpeakUpdate(const char* apiKey, int field1, int field2, float field3, float field4, const String &statusText) {
-  if (!USE_THINGSPEAK || String(apiKey) == "YOUR_THINGSPEAK_WRITE_API_KEY") {
+bool sendThingSpeakUpdate(const char *apiKey, int field1, int field2,
+                          float field3, float field4,
+                          const String &statusText) {
+  if (!USE_THINGSPEAK || String(apiKey).length() < 10) {
     return false;
   }
 
@@ -150,8 +154,9 @@ bool sendThingSpeakUpdate(const char* apiKey, int field1, int field2, float fiel
   }
 
   HTTPClient http;
-  String url = String(THINGSPEAK_URL) + "?api_key=" + String(apiKey) + "&field1=" + String(field1) +
-               "&field2=" + String(field2) + "&field3=" + String(field3, 2) + "&field4=" + String(field4, 2) +
+  String url = String(THINGSPEAK_URL) + "?api_key=" + String(apiKey) +
+               "&field1=" + String(field1) + "&field2=" + String(field2) +
+               "&field3=" + String(field3, 2) + "&field4=" + String(field4, 2) +
                "&status=" + statusText;
   http.begin(url);
   int statusCode = http.GET();
@@ -174,10 +179,14 @@ void postEntranceEvent(JsonDocument &eventDoc) {
     payload["reason"] = eventDoc["reason"] | "membership_active";
     payload["source"] = "entrance_station_uart";
     postJson("/entry-log", payload);
-    sendThingSpeakUpdate(THINGSPEAK_API_KEY_ENTRANCE, payload["granted"] ? 1 : 0, 0, 0.0f, 0.0f,
-                         String("entry_") + payload["rfid_uid"].as<const char *>());
-  } else if (String(eventType) == "gate_opened" || String(eventType) == "entry_completed") {
-    sendThingSpeakUpdate(THINGSPEAK_API_KEY_ENTRANCE, 0, 0, 0.0f, 0.0f, String(eventType) + "_" + String(eventDoc["rfid_uid"] | ""));
+    sendThingSpeakUpdate(
+        THINGSPEAK_API_KEY_ENTRANCE, payload["granted"] ? 1 : 0, 0, 0.0f, 0.0f,
+        String("entry_") + payload["rfid_uid"].as<const char *>());
+  } else if (String(eventType) == "gate_opened" ||
+             String(eventType) == "entry_completed") {
+    sendThingSpeakUpdate(THINGSPEAK_API_KEY_ENTRANCE, 0, 0, 0.0f, 0.0f,
+                         String(eventType) + "_" +
+                             String(eventDoc["rfid_uid"] | ""));
   }
 }
 
@@ -214,8 +223,8 @@ bool postMachineTap(const String &uid) {
   Serial.printf("\n=== RFID Card Detected: %s ===\n", uid.c_str());
   Serial.printf("Backend URL: %s\n", BACKEND_URL);
   Serial.printf("WiFi status: %s (IP: %s)\n",
-    WiFi.status() == WL_CONNECTED ? "Connected" : "Disconnected",
-    WiFi.localIP().toString().c_str());
+                WiFi.status() == WL_CONNECTED ? "Connected" : "Disconnected",
+                WiFi.localIP().toString().c_str());
 
   DynamicJsonDocument doc(384);
   doc["rfid_uid"] = uid;
@@ -244,7 +253,8 @@ bool postMachineTap(const String &uid) {
     Serial.printf("Member identified: %s\n", session.memberName.c_str());
   }
   Serial.println("Waiting for exercise selection from dashboard/cloud");
-  sendThingSpeakUpdate(THINGSPEAK_API_KEY_MACHINE, 0, 0, 0.0f, 0.0f, "member_tapped");
+  sendThingSpeakUpdate(THINGSPEAK_API_KEY_MACHINE, 0, 0, 0.0f, 0.0f,
+                       "member_tapped");
   return true;
 }
 
@@ -265,8 +275,10 @@ void beginTracking(const String &sessionCode, const String &exerciseType) {
   session.minDistance = 999.0f;
   session.repState = WAIT_FOR_PUSH;
 
-  Serial.printf("Tracking enabled for %s, session=%s\n", exerciseType.c_str(), sessionCode.c_str());
-  sendThingSpeakUpdate(THINGSPEAK_API_KEY_MACHINE, 1, 0, 0.0f, 0.0f, "tracking_started");
+  Serial.printf("Tracking enabled for %s, session=%s\n", exerciseType.c_str(),
+                sessionCode.c_str());
+  sendThingSpeakUpdate(THINGSPEAK_API_KEY_MACHINE, 1, 0, 0.0f, 0.0f,
+                       "tracking_started");
 }
 
 void pollMachineState() {
@@ -291,17 +303,22 @@ void pollMachineState() {
 
   // DEBUG PRINT
   if (String(rfidUid).length() > 0) {
-    Serial.printf("[Poll] User: %s, Status: %s, Session: %s\n", rfidUid, exerciseStatus, sessionCode);
+    Serial.printf("[Poll] User: %s, Status: %s, Session: %s\n", rfidUid,
+                  exerciseStatus, sessionCode);
   }
 
-  if (String(rfidUid).length() == 0 || String(exerciseStatus) == "awaiting_rfid") {
+  if (String(rfidUid).length() == 0 ||
+      String(exerciseStatus) == "awaiting_rfid") {
     Serial.println("Dashboard reset detected - resetting machine");
     resetLocalSession();
     return;
   }
 
-  if (!session.tracking && session.uid.equalsIgnoreCase(rfidUid) && String(exerciseStatus) == "tracking" && String(sessionCode).length() > 0) {
-    Serial.printf("Dashboard signal received: Starting tracking for %s\n", exerciseType);
+  if (!session.tracking && session.uid.equalsIgnoreCase(rfidUid) &&
+      String(exerciseStatus) == "tracking" &&
+      String(sessionCode).length() > 0) {
+    Serial.printf("Dashboard signal received: Starting tracking for %s\n",
+                  exerciseType);
     beginTracking(String(sessionCode), String(exerciseType));
   }
 }
@@ -337,8 +354,9 @@ void sendTelemetry(float distanceValue, bool repCompleted) {
   postJson("/session/sample", doc);
 
   if (repCompleted) {
-    sendThingSpeakUpdate(THINGSPEAK_API_KEY_MACHINE, session.repCount, int(distanceValue * 10), session.peakDistance - session.minDistance, 0.0f,
-                         "rep_completed");
+    sendThingSpeakUpdate(
+        THINGSPEAK_API_KEY_MACHINE, session.repCount, int(distanceValue * 10),
+        session.peakDistance - session.minDistance, 0.0f, "rep_completed");
   }
 }
 
@@ -352,20 +370,23 @@ void countRep(float distanceValue) {
     session.repState = WAIT_FOR_RETURN;
     session.repStartedAt = millis();
     session.lastMovementAt = millis();
-  } else if (session.repState == WAIT_FOR_RETURN && distanceValue >= RETURN_THRESHOLD_CM) {
+  } else if (session.repState == WAIT_FOR_RETURN &&
+             distanceValue >= RETURN_THRESHOLD_CM) {
     float rom = session.peakDistance - session.minDistance;
     if (rom >= MIN_ROM_CM) {
       session.repState = WAIT_FOR_PUSH;
       session.repCount++;
       unsigned long repDuration = millis() - session.repStartedAt;
-      float speed = repDuration > 0 ? rom / (float(repDuration) / 1000.0f) : 0.0f;
+      float speed =
+          repDuration > 0 ? rom / (float(repDuration) / 1000.0f) : 0.0f;
       session.romAccumulator += rom;
       session.speedAccumulator += speed;
       session.lastMovementAt = millis();
       session.peakDistance = distanceValue;
       session.minDistance = distanceValue;
       repCompleted = true;
-      Serial.printf("Rep %d complete, duration=%lu ms, rom=%.1f cm\n", session.repCount, repDuration, rom);
+      Serial.printf("Rep %d complete, duration=%lu ms, rom=%.1f cm\n",
+                    session.repCount, repDuration, rom);
     } else {
       session.repState = WAIT_FOR_PUSH;
       session.peakDistance = distanceValue;
@@ -381,11 +402,14 @@ void endSession(bool completed) {
     resetLocalSession();
     return;
   }
-  session.armed = false; 
+  session.armed = false;
 
   if (session.tracking && !session.sessionId.isEmpty()) {
-    float avgRom = session.repCount > 0 ? session.romAccumulator / session.repCount : 0.0f;
-    float avgSpeed = session.repCount > 0 ? session.speedAccumulator / session.repCount : 0.0f;
+    float avgRom =
+        session.repCount > 0 ? session.romAccumulator / session.repCount : 0.0f;
+    float avgSpeed = session.repCount > 0
+                         ? session.speedAccumulator / session.repCount
+                         : 0.0f;
     unsigned long durationMs = millis() - session.startedAt;
     int finalReps = session.repCount;
     String sid = session.sessionId;
@@ -397,19 +421,21 @@ void endSession(bool completed) {
     doc["average_rom"] = avgRom;
     doc["speed_consistency"] = avgSpeed;
     doc["machine_name"] = "Chest Press";
-    
+
     // Reset LOCAL immediately so the next tap doesn't see old reps
     resetLocalSession();
     Serial.println("Session reset locally. Syncing with backend...");
 
     postJson("/session/end", doc);
-    sendThingSpeakUpdate(THINGSPEAK_API_KEY_MACHINE, finalReps, 0, avgRom, avgSpeed, completed ? "session_completed" : "session_stopped");
+    sendThingSpeakUpdate(THINGSPEAK_API_KEY_MACHINE, finalReps, 0, avgRom,
+                         avgSpeed,
+                         completed ? "session_completed" : "session_stopped");
 
     Serial.printf("Session ended successfully, reps=%d\n", finalReps);
   } else {
     resetLocalSession();
   }
-  
+
   resetRemoteMachineState();
 }
 
@@ -437,7 +463,8 @@ void setup() {
   WiFi.mode(WIFI_STA);
   ensureWifi();
   if (WiFi.status() == WL_CONNECTED) {
-    Serial.printf("WiFi connected, IP: %s\n", WiFi.localIP().toString().c_str());
+    Serial.printf("WiFi connected, IP: %s\n",
+                  WiFi.localIP().toString().c_str());
   } else {
     Serial.println("WiFi connection FAILED");
   }
@@ -457,25 +484,32 @@ void loop() {
       postMachineTap(uid);
     } else if (uid == session.uid) {
       if (session.tracking) {
-        Serial.printf("RFID tapped again by %s\n", session.memberName.length() > 0 ? session.memberName.c_str() : uid.c_str());
+        Serial.printf("RFID tapped again by %s\n",
+                      session.memberName.length() > 0
+                          ? session.memberName.c_str()
+                          : uid.c_str());
         endSession(true);
       } else {
         Serial.println("Same member tapped again before exercise start");
         endSession(false);
       }
     } else {
-      Serial.println("Another member card was tapped while the machine is busy.");
+      Serial.println(
+          "Another member card was tapped while the machine is busy.");
       Serial.println("Checking with backend if machine is actually busy...");
-      
+
       DynamicJsonDocument checkDoc(768);
       if (getJson("/machine/current", checkDoc)) {
         const char *backendUid = checkDoc["rfid_uid"] | "";
-        if (String(backendUid).length() == 0 || String(backendUid) == "Awaiting Tap...") {
-          Serial.println("Backend is actually free! Resetting and allowing new tap.");
+        if (String(backendUid).length() == 0 ||
+            String(backendUid) == "Awaiting Tap...") {
+          Serial.println(
+              "Backend is actually free! Resetting and allowing new tap.");
           resetLocalSession();
           postMachineTap(uid);
         } else {
-          Serial.println("Backend confirms machine is still busy. Reset or finish first.");
+          Serial.println(
+              "Backend confirms machine is still busy. Reset or finish first.");
         }
       } else {
         Serial.println("Backend unreachable. Cannot verify status.");

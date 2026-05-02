@@ -218,11 +218,40 @@ def machine_select_exercise(payload: ExerciseSelectRequest, db: Session = Depend
 
 @router.post("/machine/reset")
 def machine_reset(db: Session = Depends(get_db)):
+    # 1. Close ALL active sessions in the database globally
+    active_sessions = db.query(WorkoutSession).filter(WorkoutSession.status == "active").all()
+    for session in active_sessions:
+        session.status = "cancelled"
+        session.ended_at = datetime.utcnow()
+        print(f"[Backend] Terminated active session: {session.session_code}")
+
+    # 2. Reset the hardware live state
     live_state = get_or_create_live_state(db)
-    close_live_session_if_needed(db, live_state)
     reset_live_state(live_state)
+    
     db.commit()
     return {"status": "success"}
+
+
+@router.post("/session/stop/{session_id}")
+def stop_session(session_id: str, db: Session = Depends(get_db)):
+    session = db.query(WorkoutSession).filter(WorkoutSession.session_code == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    if session.status == "active":
+        session.status = "cancelled"
+        session.ended_at = datetime.utcnow()
+        print(f"[Backend] Force-stopped individual session: {session_id}")
+        
+        # If this specific session is currently on the dashboard, clear the machine state
+        live_state = get_or_create_live_state(db)
+        if live_state.active_session_code == session_id:
+            reset_live_state(live_state)
+            
+        db.commit()
+    
+    return {"status": "success", "message": "Session stopped manually"}
 
 
 @router.get("/machine/current")
