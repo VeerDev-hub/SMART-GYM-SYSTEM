@@ -13,23 +13,27 @@
 #endif
 
 // ──── WiFi ────
+
 const char *WIFI_SSID     = SECRET_WIFI_SSID;
 const char *WIFI_PASSWORD = SECRET_WIFI_PASSWORD;
+
+
 
 // ──── Backend API ────
 // Set this to the IP address of the machine running the FastAPI backend.
 // Find it with `ipconfig` (Windows) or `ifconfig` / `ip addr` (Linux/Mac).
-// Note: run.py rewrites this line automatically with your current LAN IP.
-const char *BACKEND_URL = "http://192.168.1.100:8080";
+
+const char *BACKEND_URL = "";
 
 // Device authentication key (must match DEVICE_API_KEY in backend/auth/security.py)
-const char *DEVICE_KEY = SECRET_DEVICE_KEY;
+const char *DEVICE_KEY = "";
 
 // ──── ThingSpeak (optional cloud logging) ────
 const bool USE_THINGSPEAK          = true;
-const char *THINGSPEAK_API_KEY_ENTRANCE = SECRET_THINGSPEAK_KEY_ENTRANCE;
-const char *THINGSPEAK_API_KEY_MACHINE  = SECRET_THINGSPEAK_KEY_MACHINE;
-const char *THINGSPEAK_URL         = "https://api.thingspeak.com/update";
+const char *THINGSPEAK_API_KEY_ENTRANCE = "";
+const char *THINGSPEAK_API_KEY_MACHINE  = "";
+const char *THINGSPEAK_URL         = "http://api.thingspeak.com/update";
+
 
 // ──── Pin Mapping ────
 static const byte SS_PIN      = 5;   // RFID SDA
