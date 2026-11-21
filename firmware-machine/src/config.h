@@ -4,22 +4,31 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
+// Credentials live in secrets.h, which git ignores.
+// First-time setup: copy secrets.example.h to secrets.h and fill it in.
+#if __has_include("secrets.h")
+#include "secrets.h"
+#else
+#error "Missing src/secrets.h - copy src/secrets.example.h to src/secrets.h and fill in your WiFi and API keys."
+#endif
+
 // ──── WiFi ────
-const char *WIFI_SSID     = "Zero";
-const char *WIFI_PASSWORD = "987654321";
+const char *WIFI_SSID     = SECRET_WIFI_SSID;
+const char *WIFI_PASSWORD = SECRET_WIFI_PASSWORD;
 
 // ──── Backend API ────
 // Set this to the IP address of the machine running the FastAPI backend.
 // Find it with `ipconfig` (Windows) or `ifconfig` / `ip addr` (Linux/Mac).
-const char *BACKEND_URL = "http://10.249.67.238:8080";
+// Note: run.py rewrites this line automatically with your current LAN IP.
+const char *BACKEND_URL = "http://192.168.1.100:8080";
 
 // Device authentication key (must match DEVICE_API_KEY in backend/auth/security.py)
-const char *DEVICE_KEY = "demo-device-key";
+const char *DEVICE_KEY = SECRET_DEVICE_KEY;
 
 // ──── ThingSpeak (optional cloud logging) ────
 const bool USE_THINGSPEAK          = true;
-const char *THINGSPEAK_API_KEY_ENTRANCE = "M3SKTUX63XY5WW44";
-const char *THINGSPEAK_API_KEY_MACHINE  = "F71D9JRSZWJ4BHYU";
+const char *THINGSPEAK_API_KEY_ENTRANCE = SECRET_THINGSPEAK_KEY_ENTRANCE;
+const char *THINGSPEAK_API_KEY_MACHINE  = SECRET_THINGSPEAK_KEY_MACHINE;
 const char *THINGSPEAK_URL         = "https://api.thingspeak.com/update";
 
 // ──── Pin Mapping ────

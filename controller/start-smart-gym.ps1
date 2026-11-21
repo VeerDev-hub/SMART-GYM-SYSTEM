@@ -76,7 +76,7 @@ $workers += [pscustomobject]@{
     Process = Start-WorkerWindow `
         -Title "Smart Gym Backend" `
         -WorkingDirectory $backendPath `
-        -Command "$python -m uvicorn main:app --reload"
+        -Command "$python -m uvicorn main:app --host 0.0.0.0 --port 8080 --reload"
 }
 
 $workers += [pscustomobject]@{
@@ -100,7 +100,7 @@ $workers += [pscustomobject]@{
     Process = Start-WorkerWindow `
         -Title "Smart Gym Dashboard Server" `
         -WorkingDirectory $dashboardPath `
-        -Command "$python -m http.server 8080"
+        -Command "$python -m http.server 3000"
 }
 
 $workers |
@@ -110,8 +110,8 @@ $workers |
 
 Write-Host ""
 Write-Host "Smart Gym controller started."
-Write-Host "Backend:   http://localhost:8000"
-Write-Host "Dashboard: http://localhost:8080"
+Write-Host "Backend:   http://localhost:8080"
+Write-Host "Dashboard: http://localhost:3000"
 Write-Host ""
 Write-Host "Use controller\stop-smart-gym.ps1 to stop all launched windows."
 

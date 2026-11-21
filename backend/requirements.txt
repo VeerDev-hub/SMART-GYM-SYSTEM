@@ -7,4 +7,4 @@ python-jose[cryptography]==3.5.0
 python-multipart==0.0.20
 scikit-learn==1.7.1
 joblib==1.5.1
-
+zeroconf

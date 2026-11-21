@@ -8,10 +8,10 @@ Use the Python controller to start and stop the complete Smart Gym demo from one
 
 ## What the start script launches
 
-1. FastAPI backend on `http://localhost:8000`
+1. FastAPI backend on `http://localhost:8080`
 2. Demo simulator
 3. YOLO AI vision app
-4. Static dashboard server on `http://localhost:8080`
+4. Static dashboard server on `http://localhost:3000`
 
 ## Start everything
 

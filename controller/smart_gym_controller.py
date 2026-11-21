@@ -35,7 +35,7 @@ def build_processes(python_exe: str) -> list[dict]:
         {
             "name": "backend",
             "cwd": ROOT / "backend",
-            "cmd": [backend_python, "-m", "uvicorn", "main:app", "--host", "127.0.0.1", "--port", "8000", "--reload"],
+            "cmd": [backend_python, "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080", "--reload"],
         },
         {
             "name": "simulator",
@@ -50,7 +50,7 @@ def build_processes(python_exe: str) -> list[dict]:
         {
             "name": "dashboard",
             "cwd": ROOT / "Smart-Gym" / "web-dashboard",
-            "cmd": [python_exe, "-m", "http.server", "8080"],
+            "cmd": [python_exe, "-m", "http.server", "3000"],
         },
     ]
 
@@ -119,7 +119,7 @@ def wait_for_backend(timeout_seconds: float = 10.0) -> bool:
     started = time.time()
     while time.time() - started < timeout_seconds:
         try:
-            with urlopen("http://127.0.0.1:8000/", timeout=1.0) as response:
+            with urlopen("http://127.0.0.1:8080/", timeout=1.0) as response:
                 return response.status == 200
         except Exception:
             time.sleep(0.4)
@@ -159,8 +159,8 @@ def command_start(recreate_db: bool) -> int:
     backend_ok = wait_for_backend()
     print("")
     print("Smart Gym controller started.")
-    print("Backend:   http://127.0.0.1:8000")
-    print("Dashboard: http://localhost:8080")
+    print("Backend:   http://127.0.0.1:8080")
+    print("Dashboard: http://localhost:3000")
     if not backend_ok:
         print("Warning: backend did not become healthy.")
         print(f"Check backend log: {LOG_DIR / 'backend.log'}")

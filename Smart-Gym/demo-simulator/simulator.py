@@ -3,7 +3,7 @@ import requests
 import time
 import random
 
-URL = "http://127.0.0.1:8000/simulator/update"
+URL = "http://127.0.0.1:8080/simulator/update"
 
 print("=== Hardware Simulator: Reps & Access Mode ===")
 
